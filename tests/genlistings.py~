@@ -1,4 +1,0 @@
-tests = ['sll-find']
-
-for t in tests:
-    print t
