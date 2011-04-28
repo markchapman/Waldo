@@ -1,0 +1,116 @@
+@noindent
+@strong{New in version 1.2 compare to version 1.1}
+This is a major release.
+
+@enumerate
+@item
+New functions added: @code{add_tail}, @code{create_tail},
+@code{get_tail}, @code{concat}. ABL now is a proper and effective
+queue as well as a list or stack.
+
+@item
+Functions @code{foreach}, @code{findif}, @code{deleteif} were
+changed. They accept parameters for testing function and can start
+acting from some arbitrary element.
+
+@item
+Function @code{findif} has a side effect: it move point to the found
+element.
+
+@item
+More examples. Most important is recursion demonstration example.
+
+@item
+Many improvements to the code and documentation.
+
+@end enumerate
+
+@noindent
+@strong{New in version 1.11 compare to version 1.1}
+
+This is a bug-fix release.
+
+A serious missprint was fixed. The bug did not allowed to compile the
+library on any compiler but gcc.
+                                   
+@noindent
+@strong{New in version 1.1 compare to version 1.0}
+
+This is a major release.
+
+@enumerate
+@item
+New functions added: @code{reduce}, @code{sort}, @code{combsort},
+@code{reproduce}.
+@item
+Function @code{get_car} is removed!
+@item
+Function @code{nreverse} is renamed to @code{reverse}.
+@item
+The documentation is revised and improved. Examples of
+@code{reproduce} and @code{reduce} usage are included in docs.
+@end enumerate
+
+@noindent
+@strong{New in version 1.0 compare to version 0.99}
+
+This is a major release with a lot of big changes.
+
+@enumerate
+@item
+car is no more a pointer (after discussion on
+http://linux.org.ru). This changes how list elements are stored in
+memory.
+@item
+Function @code{add_head_c} is deleted!  @xref{Interface}.
+@item
+Function @code{create_head_c} is deleted. Function @code{create_head}
+was modify to unify both creation methods. @xref{Interface}.
+@item
+Make/destructor are renamed to make/destroy.  @xref{Make and
+Destroy}.
+@item
+Major revision of the documentation. All examples and tests are
+redone.
+@item
+ABL logo is created. ABL is now not ``Atoku's Basic List'' but rather
+``Abstract Basic List''. Ha-ha!
+@end enumerate
+
+@noindent
+@strong{New in version 0.99 compare to version 0.98}
+
+This is a major release in spite of the minor change in numbers. After
+extensive testing, it supposed to be version 1.0.
+
+@enumerate
+@item
+New functions: @code{mapcar}, @code{add_head_c}, @code{create_head},
+@code{create_head_c}.  @xref{Interface}.
+@item
+Constructor/Destructor feature. Well, it is pretty advances thing. I
+did not see anything similar before. @xref{Make and
+Destroy}.
+@item
+Completely revised documentation. There are some examples added to the
+doc as well.
+@end enumerate
+
+@noindent
+@strong{New in version 0.98 compare to version 0.9/0.95}
+
+@enumerate
+@item
+New functions: @code{del_after_point} and @code{get_point_next}.
+@xref{Interface}.
+@item
+New macros: @code{ABL_BEGIN_LOOP} and @code{ABL_END_LOOP}. @xref{The
+Loop Macro}.
+@item
+Doxygen compatible comments. abl.h can be used to generate doxygen
+documentation for your program (Documentation of this feature is to be
+added later).
+@item
+@code{point_next} changed the name to @code{move_point_next}.
+@end enumerate
+

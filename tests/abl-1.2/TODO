@@ -1,0 +1,14 @@
+1. write deleter of some special symbols (like =) or add it as a
+succeder of all fields
+
+2. Line of present tags in configuration file (or maybe reserved group)
+
+3. Consider the flexibility in group descriptions
+
+4. Add a flag for interruption of work if an error occured.
+
+5. Write a documentation in texinfo system and add texinfo generation
+in Makefile
+
+6. write emacs mode for pcnf ini files
+

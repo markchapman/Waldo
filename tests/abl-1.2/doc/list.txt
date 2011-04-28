@@ -1,0 +1,4 @@
+
+head              point
+[   ] -> [   ] -> [   ] -> [   ] -> [   ] -> abl_nil
+[car]    [car]    [car]    [car]    [car]

@@ -1,0 +1,1282 @@
+\input texinfo   @c -*-texinfo-*-
+@c $Revision: 64 $ $Date: 2008-01-27 23:15:33 -0900 (Sun, 27 Jan 2008) $
+
+@c -*-texinfo-*-
+@c This is the ABL Reference Manual.
+@c Copyright (C) 2004-2008
+@c   Anton Kulchitsky
+@c See the file fdl.texi for copying conditions.
+
+@c %**start of header
+@setfilename abl.info
+@set UPDATED 2008-01-27 Sunday
+@set UPDATED-MONTH January 2008
+@set YEARS 2004--2008
+@set VERSION 1.2
+@settitle ABL @value{VERSION}
+@c %**end of header
+
+@c redirect functional index into common index
+@syncodeindex fn cp
+
+@copying
+
+  This manual is for ABL (Abstract Basic List) (version @value{VERSION},
+  @value{UPDATED}).
+
+@code{ABL} is a basic list library.
+
+  Copyright @copyright{} @value{YEARS} Anton Kulchitsky
+
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.2 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
+Texts. A copy of the license is not included in the manual itself.
+The electron version of this manual must be distributed with the file
+containing the full text of the license except when distributing the
+manual in html, pdf or ps formats.
+@end quotation
+
+@end copying
+
+@titlepage
+
+  @title @image{logo,,1.0in,,} (Abstract Basic List) @value{VERSION}
+  @author Anton Kulchitsky (@email{anton@@kulchitsky.org})
+
+  @c The following two commands start the copyright page.
+  @page
+  @vskip 0pt plus 1filll
+  @insertcopying
+
+@end titlepage
+
+@c Output the table of contents at the beginning.
+@contents
+
+@syncodeindex fn cp
+@syncodeindex vr cp
+
+
+@ifnottex
+  @node Top
+  @top ABL library
+
+  @insertcopying
+@end ifnottex
+
+@menu
+* Introduction::           What is ABL.
+* Installation::           How to install @var{ABL}.
+* Description::            How ABL works and its interface.
+* Examples::               Usage examples with explanations.
+* Planned Features::       Planned features and known bugs.
+* Change Log::             What is new compare to the previous versions.
+* Acknowledgements::       People who helped
+@c * Copying This Manual::    The GNU Free Documentation License.
+* Index::                  Complete index.
+@end menu
+
+@c ----------------------
+@node Introduction
+@chapter Introduction
+
+@code{ABL} is a flexible list library.  It can be used to define
+linked lists of arbitrary type elements in C programs. It allows
+easily to define and effectively use complicated types like list of
+lists. @code{ABL} contains tools to make memory management easy. It
+also includes basic high order functions for searching, filtering,
+mapping, reproducing lists and reduce. It also includes effective sort
+and reverse.
+
+The library is implemented using (or abusing) C preprocessor rather
+than usual approach with void pointers. (Void pointers approach is
+described for example in ``Mastering Algorithms with C'' by Kyle
+Loudon.) The main difference between these approaches is that ABL is
+more designed as an extension to the language rather than a library.
+In our opinion, it allows more abstract definitions for a user and
+more flexible usage similar that is provided by template libraries in
+C++.
+
+ABL also defines and was inspired by Lisp lists which maybe more
+convenient for Lisp/Scheme programmers to use.
+
+The ABL can be included in any other libraries or programs that are
+compatible with LGPL v.3 or later by just copying a single header
+file.
+
+ABL is not designed for huge lists that occupy a significant part of
+computer memory. ABL does not use any advancesd garbage collection
+techniques neither it tries to keep allocated memory
+continues. However, the flexibility allows it to perform some tasks
+very effectively operating just on pointers.
+
+Advantages of ABL are: flexibility, convenience, speciality,
+everything is in one header file (no linkage), and sometimes
+effectiveness. Finally, it is free software distributed under GNU LGPL
+v.3 condition.
+
+@emph{Note:} ABL is designed exclusively as a linked list library. It
+will remain a linked list library only (stacks and queues are also
+linked lists; so the library includes them). Different types of lists
+(circle and double-linked) can be included in it later though.
+
+@c ----------------------
+@node Installation
+@chapter Installation
+@cindex installation
+
+To install the library in a standard location, use
+@example
+./configure
+make
+su -c "make install"
+@end example
+
+In the case you installing it locally or to non-standard location, use
+@example
+./configure --prefix=/desired/location
+make
+make install
+@end example
+instead. Do not forget to change @env{C_INCLUDE_PATH} to be able to
+reach the library.
+
+You also may want just to use the code of the library without
+installing it. In this case, just copy file @file{abl.h} from
+@file{src} to your program files and use @code{#include "abl.h"}
+instead of @code{#include <abl.h>}.
+
+@c ----------------------
+@node Description
+@chapter Description
+@cindex description
+
+@menu
+* List Type::               What is the list in ABL
+* Queue and Stack::         ABL as a queue or a stack
+* List Declaration::        How to declare of the list of some type
+* Interface::               How to use the new list type
+* The Loop Macro::          Commands to make loops over the list
+easier
+* Make and Destroy:: Smart memory management for
+complicated lists
+@end menu
+
+
+@node List Type
+@section List Type
+@cindex list
+@cindex list element
+@cindex data
+@cindex cdr
+
+ABL defines an abstract linked list of elements of @emph{uniform
+type}. (To use this list for storing elements of different types, one
+may use void pointers.) An element of the list consists of a pointer
+and a content. A pointer (@dfn{pnext}) points to the next element of
+the list. The content (@dfn{data}) contains the meaning of the
+element.
+
+@cindex pointer
+@cindex head
+@cindex length
+
+ABL list stores the pointer @dfn{head} to the first element of the
+list, the pointer @dfn{point} to some element of the list, and the
+pointer @dfn{tail} to the last element of the list, and the length of
+the list which is the number of elements in the list. It also may
+store pointers to functions make and destroy of data if
+necessary. @xref{Make and Destroy}. The cdr of the last element in the
+list is a speciall element @dfn{abl_nil} (currently it is NULL).
+
+@cindex nil
+@cindex abl_nil
+
+@float Figure,fig:list
+   @image{list,,}
+   @caption{A list. Point points to the fourth element in this
+   example}
+@end float
+
+
+@node Queue and Stack
+@section Queue and Stack
+@cindex queue
+@cindex stack
+
+Queues and stacks can be modeled from the ABL list very
+straightforward. It seems enough just to take a look at the
+pictures below. Queues have tails to add/create elements there and
+heads to get elements and delete them. Stacks add/create and access
+elements from the head in contrast.
+
+@float Figure,fig:queue
+   @image{queue,,}
+   @caption{A queue. Use @code{add_tail} or @code{create_tail} to add
+   elements to the queue. Use @code{get_head} and @code{del_head} 
+   to access and remove elements from the queue.}
+@end float
+
+@float Figure,fig:stack
+   @image{stack,,}
+   @caption{A stack. Use @code{add_head} or @code{create_head} to add
+   elements to the stack. Use @code{get_head} and @code{del_head} 
+   to access and remove elements from the stack.}
+@end float
+
+@node List Declaration
+@section List Declaration
+@cindex declaration
+
+To start to use the ABL in your program, all you need to do is to
+include @file{abl.h} into your code:
+
+@example
+#include <abl.h>
+@end example
+
+Then, you can start to declare your own list types with the macro
+@dfn{abl_typedef_list}.
+
+@defmac abl_typedef_list type_of_data, new_type_name
+The macro @code{abl_typedef_list} is used for a new list type
+definition. It must be used in the global name space outside of any
+function definition. It accepts two parameters. The first parameter is
+the type of the list element content (data). It can be a keyword or
+any type defined earlier by @code{typedef} or @code{#define}
+commands. It also can be a list type defined by the second parameter
+of @code{abl_typedef_list} command as well (see below).
+
+The second parameter is your list type which is also a prefix to your
+list functions. It can be any C identifier. This macro introduces a
+new type (using @code{typedef}) for the list and a set of functions
+(interface) to work with this type.
+@end defmac
+
+For example, if you need a list of integers, you may define this type
+by the following command somewhere in the global name space of your
+program (outside of all function definitions):
+
+@example
+abl_typedef_list( int, int_list )
+@end example
+
+You may type this macro without @code{;} at the end if you prefer.
+Now you can declare variables of your list type (if you are from C++
+world, you may think about them as objects of this list class):
+
+@example
+int_list a,b,c;
+@end example
+
+@noindent for our example of @code{int_list}. You also can declare pointers to
+this type and then use @code{malloc} for allocation of memory for this
+type and, of course, @code{sizeof} function to determine the size of
+the type:
+
+@example
+int_list* pa = (int_list*) malloc( sizeof(int_list) );
+@end example
+
+You can produce types using new declared list type. For example, you
+may type
+
+@example
+abl_typedef_list( int_list, intlists_list )
+@end example
+
+@noindent to determine the list of lists of integers.
+
+@node Interface
+@section Interface
+@cindex interface
+
+Defining the type, you define the whole set of functions to work with
+it. Every function has a prefix which is your list type followed by
+the underscore. The following description is defined without that
+prefix. Thus, to call @code{init} on your list of integers defined in
+the previous section, you need to call actually @code{int_list_init}
+for it. The first parameter of any interface function is a pointer to
+a variable of this list type.
+
+@menu
+* Initialization::          How to start to work with new list
+* Addition of Elements::    How to fill the list with new content
+* Deletion of Elements::    How to remove elements from the list
+* Point Movement::          How to move a free pointer in the list
+* Getting Elements::        How to get the content of elements
+* List State::              Some general information regarding the list
+* Reordering::              Functions to change the order (reverse, sort)
+* Copying::                 Duplication and reproduction of the list
+* Higher-Order Functions::  Functions that receive other functions as
+their arguments
+@end menu
+
+@node Initialization
+@subsection Initialization
+@cindex initialization
+
+These functions must be used before any other functions are
+applied. Function @code{init} must be called before the list
+usage. Function @code{set_md} is optional.
+
+@deftypefun void init list_type* list
+@code{init} initializes the list pointed by @var{list} before any
+usage. This function @emph{must be called before} of any other operation
+on the particular variable of your list type including
+duplication/reproduction. @xref{Copying}. This function set make and
+destroy to NULL. @xref{Make and Destroy}.
+@end deftypefun
+
+@cindex make
+@cindex destroy
+
+@deftypefun void set_md list_type* list, int (*make)(type_of_data*,void*), void (*destroy)(type_of_data*)
+@code{set_md} set make and destroy functions for the list
+content. Either make or destroy (or both) can be set to NULL. In this
+case, these make or destroy will be ignored. @xref{Make and Destroy}.
+@end deftypefun
+
+@cindex make
+@cindex destroy
+
+@node Addition of Elements
+@subsection Addition of Elements
+@cindex addition of elements
+
+@deftypefun int add_head list_type* plist, type_of_data* pdata
+Adds a head and @emph{copies} the content from @code{pdata} to
+element's content. It returns @code{ABL_ERR_ALLOC} if there was a
+memory allocation error or @code{ABL_OK} on success.
+@end deftypefun
+
+@deftypefun int create_head list_type* plist, type_of_data* pdata, void* cparam
+Creates a new head of the list.  The previous head becomes the second
+element.  It does not initialize the added head content
+explicitly. However, the element can be initialized by @code{make}
+function. If @code{make} is set by @code{set_md} function,
+@code{create_head} calls the @code{make} with @code{cparam} as a
+parameter on a new allocated data (content). @xref{Make and Destroy}. It
+returns @code{ABL_ERR_ALLOC} if there was a memory allocation error, any
+error code returned by the @code{make}, or @code{ABL_OK} on success. You
+can set @code{cparam} to @code{NULL} if you do not use
+@code{make}. @emph{Note:} @code{make} can be used to initialize the
+element. @xref{Examples}.
+@end deftypefun
+
+@deftypefun int add_tail list_type* plist, type_of_data* pdata
+Adds a tail and @emph{copies} the content from @code{pdata} to
+element's content. It returns @code{ABL_ERR_ALLOC} if there was a
+memory allocation error or @code{ABL_OK} on success.
+@end deftypefun
+
+@deftypefun int create_head list_type* list, type_of_data* pdata, void* cparam
+Creates a new tail of the list. It does not initialize the added tail
+content explicitly. However, the element can be initialized by
+@code{make} function. If @code{make} is set by @code{set_md} function,
+@code{create_head} calls the @code{make} with @code{cparam} as a
+parameter on a new allocated data (content). @xref{Make and
+Destroy}. It returns @code{ABL_ERR_ALLOC} if there was a memory
+allocation error, any error code returned by the @code{make}, or
+@code{ABL_OK} on success. You can set @code{cparam} to @code{NULL} if
+you do not use @code{make}. @emph{Note:} @code{make} can be used to
+initialize the element. @xref{Examples}.
+@end deftypefun
+
+@node Deletion of Elements
+@subsection Deletion of Elements
+@cindex deletion of elements
+
+@deftypefun void clean list_type* list
+Removes all elements from the list. It calls @code{del_head} until the
+list is empty. This function must be called at least once after all
+work on the list unless it is absolutely clear that the list is empty.
+@end deftypefun
+
+@deftypefun void del_head list_type* list
+Deletes the head element from the list and move the head to the next
+element. It releases the memory from the head content and from the
+head. It also calls the @code{destroy} on the data if the
+@code{destroy} is not @code{NULL}. @xref{Make and
+Destroy}. Programmers that do not use the @code{destroy}, must care
+about memory freeing if the data contains pointers. @code{del_head}
+does nothing for the empty list.
+@end deftypefun
+
+@deftypefun int del_after_point list_type* list_type* list
+Deletes the element next after the point from the list. It releases
+the memory from the element data and from the element. It also calls
+the @code{destroy} on the data if the @code{destroy} is not
+@code{NULL}. @xref{Make and Destroy}. Programmers that do not use
+@code{destroy} function must care about memory freeing if content
+contains pointers.
+
+If the pointer or the next element after the pointer is abl_nil,
+nothing is done and error code is returned.
+
+    Error codes:
+    @itemize
+    @item
+     ABL_OK   if the element was deleted successfully
+    @item
+     ABL_ERR_NIL  if pointer points to nil or list is empty
+    @item
+     ABL_ERR_DELNIL if the next element is NIL
+    @end itemize
+@end deftypefun
+
+@node Point Movement
+@subsection Point Movement
+@cindex point movement
+
+@deftypefun void move_point_head list_type* list
+Moves the point to the head.
+@end deftypefun
+
+@deftypefun void move_point_next list_type* list
+Moves the point to the next element. If point points to @emph{nil},
+it does nothing.
+@end deftypefun
+
+Note that some other functions can move the pointer as a side
+effect. See for example @code{findif} function.
+
+@node Getting Elements
+@subsection Getting Elements
+@cindex getting elements
+
+@deftypefun type_of_data* get_head list_type* list
+@code{get_head} returns the pointer to the data of the head element.
+@end deftypefun
+
+@deftypefun type_of_data* get_tail list_type* list
+@code{get_tail} returns the pointer to the data of the tail element.
+@end deftypefun
+
+@deftypefun type_of_data* get_point list_type* list
+@code{get_point}@anchor{get_point} returns the pointer to the data of
+the element pointed by the point. It returns NULL if the pointer
+points to @code{abl_nil}.
+@end deftypefun
+
+@deftypefun type_of_data* get_point_next list_type* list
+Returns the pointer to the data of the element next after the list
+pointer or NULL if there is no such an element.
+@end deftypefun
+
+@node List State
+@subsection List State
+@cindex list state
+
+These functions return the state of the list: if it is empty, where
+the point is, the length of the list.
+
+@deftypefun int is_empty list_type* list
+Returns 1 if the list is empty and 0 otherwise.
+@end deftypefun
+
+@deftypefun int is_point_nil list_type* list
+Returns 1 if the point points to the @emph{nil} that means to the end
+of the list.
+@end deftypefun
+
+@deftypefun size_t length list_type* list
+Returns the number of elements in the list. Operation order is O(1)
+due to list stores the length in the internal variable.
+@end deftypefun
+
+@node Reordering
+@subsection Reordering
+@cindex reordering
+
+@deftypefun void reverse list_type* list
+Reverse (destructively) the list in order. The operation is of O(n)
+order (performs 4 assignments per element).
+@end deftypefun
+
+@deftypefun void sort list_type* list, int (*cf)(type_of_data*,type_of_data*)
+Sorts the list according to the function cf. This is a stable sort (using
+merge algorithm), number of operations is O(n*log n), memory usage is
+O(1) (sorts in place). It relinks elements in the list without changing
+the content of datas (reliable).
+
+cf is a comparison function which returns non-zero if elements need to
+be reordered (a>b, for ascending sorting) and returns 0 otherwise
+(a<=b). More formally:
+@enumerate
+@item if cf(a,b)!=0; then cf(b,a)=0
+@item if cf(a,b)!=0 and cf(b,c)!=0; then cf(a,c)!=0
+@item if cf(a,b)=0 and cf(b,c)=0; then cf(a,c)=0
+@end enumerate
+We say that elements a,b are equal if cf(a,b)=cf(b,a)=0. Elements that
+are equal not need to be reordered. An example of a comparison function
+that would sort integers in ascending order can be written as follows:
+@verbatim
+
+int cf( int* a, int* b ) 
+{ 
+    return *a > *b; 
+}
+@end verbatim
+
+This sort function is very economical for comparison function
+calls. Unfortunately, due to it reconnects elements, memory becomes
+pretty much fragmented. This will reduce effectiveness of the
+processor memory cache usage. If this is an issue, you may switch to
+@code{combsort} function which does not move nodes but exchange their
+values. It is generally somehow faster but less reliable (data
+exchange), not stable and uses more comparison function calls. It
+probably does not matter which function to use for small or medium
+lists so use this @code{sort} for its stability and reliability.
+@end deftypefun
+
+@deftypefun void combsort list_type* list, int (*cf)(type_of_data*,type_of_data*)
+Sorts the list in place according to cf function. Unstable. Speed:
+O(n*log n). Memory usage: O(1). Swaps meanings of datas. Reference:
+wikipedia.org: search combsort (with shrink factor 1.3).
+
+cf is a comparison function which returns non-zero if elements need to
+be reordered (a>b, for ascending sorting) and returns 0 otherwise. For
+details see function @code{sort}.
+@end deftypefun
+
+@node Copying
+@subsection Copying
+@cindex copying
+@cindex duplicate
+@cindex reproduction
+
+@deftypefun int reproduce list_type* copy, list_type* original, int (*rf)( type_of_data* to, type_of_data* from ), int flag
+Makes a copy/reproduction of the list. @code{copy} is a new copy of
+the list. It must be allocated and initialized. The previous content
+of the @code{copy} is safely deleted. @code{original} is the list
+which copy is to be made. @xref{Usage of Reproduce}. Please, notice,
+that reproduction is not necessarily a copying only. One may produce
+any lists using appropriate reproduction function @code{rf}. It is
+preffered way to @code{mapcar} or @code{foreach} when you do not want
+to change the content of the original list.
+
+Function creates a content of a @code{copy} using a user-defined
+reproduction function @code{rf}. If @code{rf==NULL}, it makes an exact
+copy of the list. It is a dangerous option due to it makes an exact
+copy of the list but does not copy any content that might happen to be
+under pointers in data. When it is a concern, you should use non
+@code{NULL} @code{rf}. If there are no pointers in data it is safe to
+use @code{NULL} for @code{rf}.
+
+@code{rf} must return @code{ABL_OK} on success. It should safely copy
+all content from one element of the list to another.
+
+If parameter @code{flag} is @code{ABL_R_HEAD} then function reproduces
+the whole list, if it is @code{ABL_R_POINT} then function reproduces
+the list from point of the original only.
+
+Function returns @code{ABL_OK} on sucess, or @code{ABL_ERR_ALLOC}, or
+any other error returned by @code{rf} on error.
+@end deftypefun
+
+
+@node Higher-Order Functions
+@subsection Higher-Order Functions
+@cindex higher-order Functions
+
+These class of functions contains operators on the list that apply
+some functions to the elements or content and modify the list or
+return some values.
+
+@deftypefun int deleteif list_type* list, int (*filter_cond)(type_of_data*,void*), void* params, int flag
+Deletes all elements in the list that satisfy the
+@var{filter_cond}. The function @code{filter_cond} must return 0 if
+the element is @emph{not} to be deleted. @code{deleteif} returns the
+error code (@code{ABL_OK} means no errors).
+
+@code{params} are just some data that sent to @code{filter_cond}
+function as a second parameter.
+
+If parameter @code{flag} is @code{ABL_R_HEAD} then function reproduces
+the whole list, if it is @code{ABL_R_POINT} then function reproduces
+the list from point of the original only.
+@end deftypefun
+
+@deftypefun type_of_data* findif list_type* list, int (*predicate)(type_of_data*, void*), void* params, int flag
+Returns pointer to the element content (data) of the list that first
+satisfies of the @code{predicate} condition.
+
+@code{params} are just some data that sent to @code{filter_cond}
+function as a second parameter.
+
+If parameter @code{flag} is @code{ABL_R_HEAD} then function reproduces
+the whole list, if it is @code{ABL_R_POINT} then function reproduces
+the list from point of the original only.
+
+This function has a useful side effect. It sets list point to the
+found element.
+@end deftypefun
+
+@deftypefun void mapcar list_type* list, void (*f)(type_of_data*)
+Applies @code{f} to every element in the list.
+@end deftypefun
+
+@deftypefun void reduce list_type* list, void* acc, void (*f)(void*,type_of_data*)
+@code{reduce} is fold from left: [x1,x2,x3],acc ->
+f(f(f(acc,x1),x2),x3), the result will be in @code{acc}. @xref{Usage of
+Reduce}.
+@end deftypefun
+
+@node The Loop Macro
+@section The Loop Macro
+@cindex loop macro
+
+The loop macro is defined to simplify routine looping code. Please,
+try to avoid these macros. They might someday be excluded from the
+library. Use @code{foreach} and @code{mapcar} functions instead.
+
+@defop loop abl ABL_BEGIN_LOOP name_of_list_type lst
+Starts the loop for every element of the list @code{lst}. The
+reference to the element is performed by @code{get_point}
+function. Two parameters are necessary: the list type and the pointer
+to the list. @xref{Examples}.
+@anchor{code:loop}
+@end defop
+
+@defop loop abl ABL_END_LOOP name_of_list_type lst
+Ending of the loop facility. See ABL_BEGIN_LOOP for details.
+@end defop
+
+@node Make and Destroy
+@section Make and Destroy
+@cindex make
+@cindex destroy
+
+Make and destroy feature intend to improve the memory management of
+the list. They are created to automate memory allocation and
+deallocation for list of pointers of list of elements that contains
+some pointers. The simplest example can be a list of @code{char*}, see
+examples below. Make also proved to be useful beyond this narrow
+application.
+
+Destroy is a function that returns void. It has only one parameter, a
+pointer to the data type. Thus, if the list was declared
+@example
+abl_typedef_list( char*, str_list )
+@end example
+@noindent then the destructor must be declared
+@example
+void mydestr( char** );
+@end example
+@noindent (@code{mydestr} can be replaced by any desired name.) Then
+the destroy can be set for the list by @code{str_list_set_md}
+function.
+
+If @code{destroy} is different from NULL, it is called by any deletion
+function on the data of the element to delete. @xref{Deletion of
+Elements}. Usually, @code{destroy} contains only calls of @code{free}
+function. Thus, for the example above, we would have
+@verbatim
+void mydestr( char** pstr )
+{
+    free( *pstr );
+}
+@end verbatim
+
+The @code{make} is a function that returns int, the error code. It
+must return @code{ABL_OK} on success. Otherwise, it can return any
+error code but 0. This error code will be returned by some addition
+functions that call the @code{make} (namely @code{create_head} and
+@code{create_tail}). The constructor has two parameters: (1) The
+pointer to the data of the element to construct and (2) The void
+pointer to some initialization value. This value is used to determine
+what kind of initialization is to be done.
+
+The constructor is called by creation functions if and only if the
+constructor set to any other value than @code{NULL}. The last
+parameter of these functions is sent to the @code{make}.
+
+
+@c ----------------------
+@node Examples
+@chapter Examples
+@cindex examples
+
+@menu
+* List of Ints::             Basic usage of the list
+* Advanced List of Ints::    More advanced usage of the list
+* List of Strings::          List of pointers
+* Advanced List of Strings:: Proper initialization of list of pointers
+* Usage of Reduce::          Sum of elements and reverse
+* Usage of Reproduce::       Proper usage and possible mistakes
+* Usage of findif::          Demonstrates search and recursion
+* Recursion on lists::       How to use recursion on lists
+@end menu
+
+@node List of Ints
+@section List of Ints
+
+The program creates a list of integers, initializes it with 0,1,2,3,4
+in a loop, and prints all elements from the head to the tail. It uses
+the simplest functions and the LOOP macro for printing elements. Please,
+avoid using LOOP macro. Use @code{mapcar} instead.
+
+@verbatim
+#include <stdio.h>
+#include <stdlib.h>
+#include <abl.h>
+
+/* declare the int_list type */
+abl_typedef_list( int, int_list )
+
+int main()
+{
+  int_list lst;			/* list of ints */
+  int i;			/* iterator */
+
+  int_list_init( &lst );	/* initialize the list */
+  
+  /* initialize list elements by meaning of loop index */
+  for( i=0; i<5; ++i ) int_list_add_head( &lst, &i );
+
+  /* print all elements from the list */
+  ABL_BEGIN_LOOP( int_list, &lst ) {
+    printf( "%d\n", *int_list_get_point(&lst) );
+  } ABL_END_LOOP( int_list, &lst );
+
+  /* clean the list */
+  int_list_clean( &lst );
+
+  return 0;
+}
+@end verbatim
+
+@node Advanced List of Ints
+@section Advanced List of Ints
+
+This example demonstrates more advanced usage of list.
+
+The program creates a list of integers, initializes it with
+0,1,2,3,4,5,6,7,8,9,10 in a loop, finds and prints the first element
+that divides 4 (it is 8 of course), deletes all odd elements from the
+list, reverse the list, and prints all elements from the head to the
+tail using @code{mapcar} function.
+
+@verbatim
+#include <stdio.h>
+#include <stdlib.h>
+#include <abl.h>
+
+/* declare the int_list type */
+abl_typedef_list( int, int_list )
+
+/* print an elements */
+void printint( int* a )
+{
+  printf( "%d\n", *a );
+}
+
+int isodd( int* a )
+{
+  return ( *a % 2 == 1 );
+}
+
+int isdiv4( int *a )
+{
+  return ( *a % 4 == 0 );
+}
+
+int main()
+{
+  int_list lst;			/* list of ints */
+  int i;			/* iterator */
+
+  int_list_init( &lst );	/* initialize the list */
+  
+  /* initialize list elements by meaning of loop index */
+  for( i=0; i<=11; ++i ) int_list_add_head( &lst, &i );
+
+  /* find the first element that %4==0, and print it */
+  printf( "The first element that divides 4 is [%d]\n", 
+	  *int_list_findif( &lst, isdiv4 ) );
+
+  /* delete all odd elements */
+  int_list_deleteif( &lst, isodd );
+
+  /* reverse the list to make a head == 0 */
+  int_list_reverse( &lst );
+
+  /* print all elements from the list */
+  int_list_mapcar( &lst, printint );
+
+  /* clean the list */
+  int_list_clean( &lst );
+
+  return 0;
+}
+@end verbatim
+
+@node List of Strings
+@section List of Strings
+
+This program creates a list of strings, add two elements "First
+String" and "Second String" to it, print the list content and then
+cleans the list properly.
+
+This example is created to demonstrate how to allocate memory for the
+elements without make/destroy usage.
+
+@verbatim
+#include <stdio.h>
+#include <stdlib.h>
+#include <abl.h>
+
+abl_typedef_list( char*, str_list )
+
+int main()
+{
+  str_list lst;
+  char* cc;
+
+  /* List initialization */
+  str_list_init( &lst );
+
+  /* Set two list elements "First String" and "Second String" */
+  str_list_create_head( &lst, NULL );
+  *str_list_get_head( &lst ) = strdup("First String");
+
+  str_list_create_head( &lst, NULL );
+  *str_list_get_head( &lst ) = strdup("Second String");
+
+  /* Print the list */
+  ABL_BEGIN_LOOP( str_list, &lst ) {
+    printf( "%s\n", *str_list_get_point( &lst ) );
+  } ABL_END_LOOP( str_list, &lst );
+
+  /* Free the memory from each string */
+  ABL_BEGIN_LOOP( str_list, &lst ) {
+    free( *str_list_get_point( &lst ) );
+  } ABL_END_LOOP( str_list, &lst );
+
+  /* Delete all elements */
+  str_list_clean( &lst );
+
+  return 0;
+}
+@end verbatim
+
+@node Advanced List of Strings
+@section Advanced List of Strings
+
+This program creates a list of strings, add two elements "First
+String" and "Second String" to it, print the list content with mapcar,
+and then cleans the list properly.
+
+This test is created to demonstrate how to allocate and initialize
+memory for the elements WITH make/destroy usage.
+
+@verbatim
+#include <stdio.h>
+#include <stdlib.h>
+#include <abl.h>
+
+abl_typedef_list( char*, str_list )
+
+void printstr( char** pstr )
+{
+  printf( "%s\n", *pstr );
+}
+
+int str_list_make( char** pstr, void* inistr )
+{
+  *pstr = strdup( (char*)inistr );
+  if( !(*pstr) ) return ABL_ERR_ALLOC;
+  return ABL_OK;
+}
+
+void str_list_destroy( char** pstr )
+{
+  free( *pstr );
+}
+
+
+int main()
+{
+  str_list lst;
+
+  /* List initialization */
+  str_list_init( &lst );
+  str_list_set_md( &lst, str_list_make, str_list_destroy );
+
+  /* Set two list elements "First String" and "Second String" */
+  str_list_create_head( &lst, "First String" );
+  str_list_create_head( &lst, "Second String" );
+
+  /* Print the list */
+  str_list_mapcar( &lst, printstr );
+
+  /* Delete all elements */
+  str_list_clean( &lst );
+
+  return 0;
+}
+@end verbatim
+
+@node Usage of Reduce
+@section Usage of Reduce
+@cindex reduce
+
+File: test5.c. This program creates a list of integers
+[1,2,3,4,5,6,7,8,9,10] and calculates sum using reduce. The program then
+uses reduce to make a list with reversed elements.
+
+This test is created to demonstrate how to use reduce for simple
+lists.
+
+@verbatim
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <abl.h>
+
+abl_typedef_list( int, int_list )
+
+void printint( int* a )
+{
+  printf( "%d\n", *a );
+}
+
+void sum( void* acc, int* pa )
+{
+  *(int*)acc += (*pa);
+}
+
+void revc( void* acc, int* pa )
+{
+  int_list_add_head( (int_list*)acc, pa );
+}
+
+int main()
+{
+  int i;
+  int_list lst, lst_rev;
+
+  /* List initialization */
+  int_list_init( &lst );
+  int_list_init( &lst_rev );
+
+  /* Set elements */
+  for( i=1; i<=10; ++i ) int_list_add_head( &lst, &i );
+
+  /* Print the list */
+  int_list_mapcar( &lst, printint );
+
+  /* Find the sum */
+  i = 0;
+  int_list_reduce( &lst, &i, sum );
+  printf( "Sum = %d\n", i );
+
+  /* make a reverse list */
+  printf("Reverse by reduce:\n");
+  int_list_reduce( &lst, &lst_rev, revc );
+  int_list_mapcar( &lst_rev, printint );
+
+  /* Delete all elements */
+  int_list_clean( &lst );
+  int_list_clean( &lst_rev );
+
+  return 0;
+}
+@end verbatim
+
+@node Usage of Reproduce
+@section Usage of Reproduce
+@cindex reproduce
+
+File: test10.c.  This test demonstrates when reproduce with
+@code{rf==NULL} does not work: when the original list contains pointers
+in its elements.
+
+The test below generates a list of strings, fills it with some input and
+duplicates (@code{rf==NULL}) and properly reproduces it.  It changes
+then the content of the first string of the duplicate and demonstrates
+that it will change the first string of the original as well while the
+reproduction will stay safe.
+
+@verbatim
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <abl.h>
+
+/* declare char* list to sort by string length */
+abl_typedef_list( char*, str_list )
+
+void printstr( char** s ) {  printf( "%s\n", *s ); }
+
+int str_list_make( char** pstr, void* inistr )
+{
+  *pstr = strdup( (char*)inistr );
+  if( !(*pstr) ) return ABL_ERR_ALLOC;
+  return ABL_OK;
+}
+
+void str_list_destroy( char** pstr )
+{
+  free( *pstr );
+}
+
+int str_rf( char** to, char ** from)
+{
+  size_t l = 1 + strlen( *from );
+  (*to) = (char*)malloc( l*sizeof(char) );
+  if (!(*to)) return ABL_ERR_ALLOC;
+  strcpy( (*to), (*from) );
+  return ABL_OK;
+}
+
+int main()
+{
+  str_list slst, slst_dup, slst_rep;		/* list of char* */
+  char** str;
+
+  printf( "\nStrings\n\n" );
+
+  str_list_init( &slst );
+  str_list_set_md( &slst, str_list_make, str_list_destroy );
+
+  str_list_init( &slst_dup );
+  str_list_init( &slst_rep );
+
+
+  /* Set two list elements "First String" and "Second String" */
+  str_list_create_head( &slst, "First String" );
+  str_list_create_head( &slst, "Second String" );
+  str_list_create_head( &slst, "Third String" );
+  str_list_create_head( &slst, "Fourth String" );
+  str_list_create_head( &slst, "Fifth String" );
+  str_list_create_head( &slst, "Sixes String" );
+  str_list_create_head( &slst, "Seventh String" );
+  str_list_reverse( &slst );
+
+  /* Print the list */
+  printf("Original list:\n");
+  str_list_mapcar( &slst, printstr );
+  printf( "\n" );
+
+  printf("We now make a reproduction and a duplicate (rf==NULL) of the original list\n");
+  str_list_reproduce( &slst_dup, &slst, NULL, ABL_R_HEAD );
+  str_list_reproduce( &slst_rep, &slst, str_rf, ABL_R_HEAD );
+
+  printf("We change the head of the duplicate\n\n");
+  str = str_list_get_head( &slst_dup );
+  strncpy(*str,"CHANGED STRING",strlen(*str));
+
+  printf( "Duplicate:\n" );
+  str_list_mapcar( &slst_dup, printstr );
+  printf( "\n" );
+
+  printf( "Original:\n" );
+  str_list_mapcar( &slst, printstr );
+  printf( "\n" );
+
+  printf( "Real reproduction:\n" );
+  str_list_mapcar( &slst_rep, printstr );
+  printf( "\n" );
+
+  printf( 
+"You may see that changes in the duplicate will lead to changes in\n"
+"the original as well. While the reproduction copy stays independent.\n"
+"It is UNSAFE to use rf==NULL when you HAVE POINTERS in the list\n"
+"elements content. While reproduction will work fine. Moreover, you\n"
+"will get an error when you will try to free memory from duplicate\n"
+"due to double call of free on the same pointer.\n\n"
+"== USE REPRODUCE ANYTYME YOU HAVE POINTERS IN THE CONTENT! ==\n\n");
+
+  /* Delete all elements: cleaning of the duplicate list will lead to
+     error! */
+  str_list_clean( &slst );
+/*   str_list_clean( &slst_dup ); */
+  str_list_clean( &slst_rep );
+
+  return 0;
+}
+@end verbatim
+
+
+@node Usage of findif
+@section Usage of findif
+@cindex findif
+
+File: test16.c. This test tests findif function and recursion.
+
+It solves the problem: In the list of random numbers (from 0 to 9)
+find first occurence of 0, then 1, then 2, etc. until the list ends.
+
+Plase see also recursive definition of
+@code{int_list_print_what_asked} function.
+@verbatim
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>		/* for srandom */
+#include <abl.h>
+
+/* declare the int_list type */
+abl_typedef_list( int, int_list )
+
+/* print an element */
+void printint( int* a ) {  printf( "%d ", *a ); }
+
+/* predicate */
+int eql( int* a, void* b)
+{
+  return ( (*a) == (*(int*)b) );
+}
+
+/* recursive printing what was asked :) */
+void int_list_print_what_asked( int_list *pl )
+{
+  static size_t pos = 0;
+  static int el = 0;
+
+  if ( int_list_is_point_nil( pl ) ) return;
+
+  if ( int_list_findif( pl, eql, &el, ABL_R_POINT ) )
+    {
+      printf("%d ", el);
+      el++;
+      int_list_print_what_asked( pl );
+    }
+  else return;
+}
+
+const size_t N = 55; 
+
+int main()
+{
+  int_list l1;
+  /* list of ints */
+  size_t i;			/* iterator */
+
+  int_list_init( &l1 );	/* initialize the list */
+
+  /* initialize list elements by some random numbers */
+  srand((int)time(NULL));
+  for( i=0; i<N; ++i ) 
+    {
+      float SH = RAND_MAX/10.0;
+      int r = (int)rand()/SH;
+      int_list_add_tail( &l1, &r );
+    }
+
+  /* print the lists */
+  printf("List 1 (%u elements)\n", N);
+  int_list_mapcar( &l1, printint );
+  printf("\n");
+
+  /* find 1, then 2 etc. */
+  printf("All elements collecting from 0 to 9 as they occur:\n");
+  int_list_move_point_head( &l1 );
+  int_list_print_what_asked( &l1 );
+  printf("\n");
+
+  /* clean the lists */
+  int_list_clean( &l1 );
+
+  return 0;
+}
+@end verbatim
+
+@node Recursion on lists
+@section Recursion on lists
+@cindex recursion
+
+File: test15.c. This test demonstrates the proper recursion for ABL
+lists. It calculates the sum of all elements in the list starting from
+element.
+
+It is important to notice of usage of @code{int_list_e}.
+
+@verbatim
+#include <stdio.h>
+#include <abl.h>
+
+abl_typedef_list( int, int_list );
+
+/* calculates the sum of all elements in the list starting from
+   element pe using tail recursion */
+int intsum( int_list_e* pe, int S )
+{
+  if ( pe==abl_nil ) return S;
+  else return intsum( pe->pnext, S + pe->data );
+}
+
+int main()
+{
+  int_list l1;
+  int k, S;
+
+  /* list initialization [1,2,3,4,...,10] */
+  int_list_init( &l1 );
+  for ( k = 1; k<=10; ++k ) int_list_add_tail( &l1, &k );
+
+  /* Summation with recursion */
+  S = intsum( l1.head, 0 );
+  printf("The sum off all elements is %d\n", S);
+
+  int_list_clean(&l1);
+  return 0;
+}
+@end verbatim
+
+@c ----------------------
+@node Planned Features
+@chapter Planned Features
+@cindex planned features
+
+This section is a short list of planned features with explanations.
+
+@enumerate
+@item
+Thread safetyness.
+@item
+There are some undocumented functions. They need to be tested before
+any official release.
+@end enumerate
+
+@c ----------------------
+@node Change Log
+@chapter Change Log
+@cindex change log
+
+@include changelog.texi
+
+@c ----------------------
+@node Acknowledgements
+@chapter Acknowledgements
+
+Thanks @emph{k_andy} (Andrei from Donetsk) from http://linux.org.ru
+for discovering a design bug and advising how to fix it in transition
+from version 0.99 to version 1.0.
+
+@c ----------------------
+@c @node Copying This Manual
+@c @appendix Copying This Manual
+
+@c This documentation is free. 
+
+@c @menu
+@c * GNU Free Documentation License::  License for copying this manual.
+@c @end menu
+
+@c @include fdl.texi
+
+@c ----------------------
+
+@node Index
+@appendix Index
+@c @unnumbered Index
+
+@printindex cp
+
+@bye
+

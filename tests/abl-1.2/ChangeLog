@@ -1,0 +1,273 @@
+2008-01-28  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* doc/Makefile.am: different logo formats
+
+	* doc/Makefile.am: stack pictures included into distributive
+
+	* doc/abl.texi, doc/changelog.texi: Documentation and examples
+	  updated for version 1.2. Version 1.2 is ready to release.
+
+	* src/abl.h, test/Makefile.am, test/test16.c, test/test17.c,
+	  test/test18.c: added tests for foreach and deleteif functions
+
+	* src/abl.h: Flag to search from head or from point added to
+	  foreach function
+
+	* src/abl.h, test/Makefile.am, test/test16.c, test/test2.c:
+	  parameters for predicate in findif and deleteif added; side
+	  effect in findif, it set the list point to found element; add
+	  flag to findif and deleteif to search/delete from head or from
+	  point
+
+	* bootstrap.py: nicier output
+
+2008-01-21  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* test/test13.c, test/test14.c, test/test15.c: More recursion
+	  practise
+
+2008-01-18  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* test/test14.c: recursion without cdr at low level demonstration
+	  added
+
+	* src/abl.h, test/test14.c: minor errors cleaned, test14 added to
+	  repo
+
+	* src/abl.h, test/Makefile.am, test/test13.c: test14 for testing
+	  recursion with cdr function added. trailing whitespaces were
+	  cleaned out
+
+	* test/Makefile.am: test13 is added to Makefiles
+
+	* src/abl.h, test/test13.c: cdr and cut functions added
+
+2008-01-17  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h, test/Makefile.am: test12 is included into Makefile.am,
+	  functions defs are put on top in abl.h
+
+2008-01-16  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h, test/test12.c: concat function, car replaced by data,
+	  cdr replaced by pnext
+
+2007-12-04  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h: minor imporovement to reverse function
+
+2007-12-03  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h: get_tail added, get_head fixed a bug
+
+	* bootstrap.py, configure.ac, logo.svg: bootstrap improved, new
+	  pictures in documentations, logo moved to docs for simplicity of
+	  bootstrap
+
+	* test/Makefile.am, test/test10.c, test/test11.c, test/test4.c,
+	  test/test6.c, test/test8.c: other tests included into makefile,
+	  tests were modified with new tail functions
+
+	* src/abl.h: tail, tail correction to other functions, add_tail and
+	  create_tail added
+
+	* doc, doc/Makefile.am, doc/abl.texi, doc/ignorelist, doc/list.svg,
+	  doc/logo.svg, doc/queue.svg, doc/stack.svg: queues and stacks
+	  pictures
+
+2007-11-30  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* doc/changelog.texi: minor change
+
+2007-11-29  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h: minor fix
+
+	* configure.ac, doc/abl.texi, doc/changelog.texi, src/abl.h:
+	  bugfix: GCC_ATTR, new version 1.11
+
+2007-11-21  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h: combsort: eqaulity replaced by memcpy, because
+	  equality is not defined for structures (a bug)
+
+2007-11-20  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* doc/abl.texi, doc/changelog.texi: changelog and future details
+	  are adde into documentation (forgot to do this for v1.1)
+
+2007-11-19  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* test/test11.c: sort function comparison (built-in qsort wins).
+	  ver1.00 is ready
+
+	* test/test11.c: Added test for different sort function comparison
+
+	* ., doc/abl.texi, ignorelist, src/abl.h, test/test10.c,
+	  test/test5.c, test/test8.c: Documentation and tests includes
+	  reproduce, reduce functions. ver 1.1 is almost ready to release.
+
+2007-11-18  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h, test/test9.c: duplicate function is gone, reproduce
+	  have flag (from point or head to reproduce) and makes duplicates
+	  if rf==NULL
+
+2007-11-17  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* doc/abl.texi, src/abl.h: get_car is gone now, documentation
+	  includes sort functions + minor changes in docs, software changed
+	  the license to LGPLv3 or later now.
+
+	* COPYING, configure.ac, doc/abl.texi, src/abl.h, test/Makefile.am:
+	  switched to LGPLv3, docs are improved
+
+2007-11-16  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* bootstrap, bootstrap.py, configure.ac: bootstrap is significantly
+	  improved and has options. it is rewritten in python now
+
+	* src/abl.h, test/test10.c, test/test9.c: added reproduce function.
+	  test10 shows the difference between duplicate and reproduce
+
+	* src/abl.h, test/test9.c: added duplicate function: a simple
+	  cloning of the list
+
+2007-11-15  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h, test/test7.c, test/test8.c: Merge sort (sort function)
+	  is tested. It seems works good and slightly slower than combsort.
+
+2007-11-14  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h: Minor bugfix
+
+	* src/abl.h, test/test8.c: Merge sort function template is added +
+	  simple test for it
+
+2007-11-13  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* doc/abl.texi, src/abl.h, test/test3.c, test/test7.c: combsort is
+	  added and tested (test7). Fixed a bug in documentation formatting
+
+2007-11-09  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* bootstrap: ChangeLog is generated before autotools call due to
+	  automake needs ChangeLog
+
+	* AUTHORS.svn2cl, ChangeLog, bootstrap: Switch to auto generation
+	  of ChangeLog from svn logs by svn2cl. svn2cl call is included
+	  into bootstrap script
+
+2007-11-08  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* doc/abl.texi, src/abl.h, test/test2.c, test/test6.c:
+	  add/create_after_point + nreverse renamed to reverse
+
+2007-11-07  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* doc/abl.texi: docs: removed copying appendix, everything is on
+	  cover
+
+	* bootstrap, doc, doc/ignorelist, src/abl.h, test/test5.c: added
+	  reduce function, added test5
+
+2007-11-06  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* doc/list.svg: changed list chart
+
+	* doc/Makefile.am, src/Makefile.am, test/Makefile.am: keywords set
+	  for some files
+
+	* bootstrap: Minor
+
+	* bootstrap: Minor
+
+	* doc/abl.texi: texinfo file bug fix
+
+	* AUTHORS, README, bootstrap, doc/Makefile.am, doc/abl.texi,
+	  doc/changelog.texi, doc/list.txt, src/Makefile.am, src/abl.h,
+	  test, test/ignorelist, test/test3.c, test/test4.c: Documentation
+	  is updated to version 1.0, and minor changes
+
+2007-11-05  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* ., doc, doc/ignorelist, ignorelist, test, test/ignorelist: more
+	  files to ignore by svn
+
+2007-11-03  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* Makefile.am, configure.ac, doc/Makefile.am, doc/abl.texi,
+	  logo.svg, test/Makefile.am, test/test1.c, test/test2.c,
+	  test/test3.c, test/test4.c: Pictures are in dist, tests are fixed
+	  (warnings are removed)
+
+	* bootstrap, doc/abl.texi, doc/changelog.texi, src/abl.h,
+	  test/test1.c, test/test2.c, test/test3.c, test/test4.c,
+	  test/test5.c, test/test6.c: logo, new tests, new car
+
+2007-11-02  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h, test/test1.c, test/test2.c, test/test3.c,
+	  test/test4.c, test/test6.c: type_of_car is now not a pointer in
+	  the list element( significant changes ). test1 and test2 added
+	  and other tests were rewritten
+
+2007-10-29  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* doc/abl.texi, src/abl.h, test/test6.c: constructor/destructor
+	  concept is changed (thanks k_andy from Donetsk)
+
+2007-10-28  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* bootstrap: bootstrap: picture generation by inkscape
+
+	* doc/abl.texi, test/test3.c, test/test6.c: Tests improved with
+	  strdup functin
+
+2007-10-26  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* configure.ac, doc/abl.texi: Minor fixes: ver0.98 release
+
+	* doc/abl.texi, ignorelist, src/abl.h, test/Makefile.test2,
+	  test/test1.c, test/test2.c, test/test3.c, test/test4.c,
+	  test/test5.c, test/test6.c: Improved docs and fixed minor bug
+
+2007-10-25  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* doc/abl.texi, doc/list.svg, src/abl.h, test/Makefile.test2,
+	  test/test2.c: pre 0.99 version: mapcar, add_head_c, create series
+	  of function, constructor and destructor concepts, a lot of
+	  improvements to the docs
+
+2007-10-23  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h, test/test1.c, test/test2.c: destructor/constructor
+	  facility + destructor is added
+
+2007-10-09  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* bootstrap, configure.ac, doc/abl.texi: minor improvement of the
+	  distribution, ver. 0.98
+
+	* doc/abl.texi, src/abl.h, test/test1.c: 0.95 version, loop
+	  facility, del_after_point, get_point_next
+
+2007-08-31  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* src/abl.h, test/test1.c: ABL LOOP facility, doxygen type comments
+	  (not full yet) for abl functions/macros
+
+2007-08-07  Anton Kulchitsky <anton@kulchitsky.org>
+
+	* ., .cvsignore, doc, doc/.cvsignore, doc/ignorelist, ignorelist,
+	  src, src/.cvsignore, src/ignorelist: ignore lists were added,
+	  .cvsignore files were removed
+
+	* ., .cvsignore, AUTHORS, BUGS, COPYING, ChangeLog, INSTALL,
+	  Makefile.am, NEWS, README, TODO, bootstrap, configure.ac, doc,
+	  doc/.cvsignore, doc/Makefile.am, doc/abl.texi, doc/fdl.texi,
+	  doc/texinfo.tex, src, src/.cvsignore, src/Makefile.am, src/abl.h,
+	  test, test/test1.c, test/test2.c: Initial import from personal
+	  CVS
+
