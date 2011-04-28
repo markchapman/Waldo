@@ -1,6 +1,6 @@
 from subprocess import call
 
-tests = ['sll-find', 'sll-makeempty', 'sll-delete', 'sll-makeempty']
+tests = ['sll-find', 'sll-makeempty', 'sll-delete', 'sll-makeempty', 'sll-insert']
 
 for t in tests:
     print t
