@@ -6,7 +6,7 @@
 .text:00000000 ; |   Aditya Thakur, University of Wisconsin/Computer Sciences Department   |
 .text:00000000 ; +-------------------------------------------------------------------------+
 .text:00000000 ;
-.text:00000000 ; Input MD5   : 8DAF3CFA48423970ECF73BF5973DFDAC
+.text:00000000 ; Input MD5   : AD0AA6DFC71191A82CF536C38669135E
 .text:00000000
 .text:00000000 ; File Name   : C:\aditya\work\waldo\tests\array-stackDispose.obj
 .text:00000000 ; Format	     : COFF (X386MAGIC)
