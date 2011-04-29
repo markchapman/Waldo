@@ -5,18 +5,16 @@ Waldo Aidentifies Likely Datastructures ... Onestly?
 Written by: Mark Chapman
 """
 
-from __future__  import with_statement
 from collections import Counter
-from csv         import DictReader, DictWriter
+from csv         import DictWriter
 from glob        import glob
-from linecache   import getline
 from math        import sqrt
 from optparse    import OptionParser
 from os          import curdir
 from os.path     import join, splitext
 from re          import match
 from subprocess  import call
-from sys         import argv, stdin
+from sys         import argv
 
 
 # Splits a directory of C code into individual files of assembly code for each function
@@ -235,7 +233,7 @@ def writeDistancesInSpreadsheet( fpd, f ) :
 
 
 # Parses command line arguments
-def runOptionParser( argv ) :
+def runOptionParser() :
     parser = OptionParser()
     parser.add_option('-l', '--dlib', dest='l', metavar='DLIB',
         help='directory of library code [ default : current ]' )
@@ -257,7 +255,7 @@ def runOptionParser( argv ) :
 
 # Finds similarity of executable to library code using fingerprints
 if __name__ == '__main__' :
-    (opts, args) = runOptionParser( argv )
+    (opts, args) = runOptionParser()
     if not opts.skip_library :
         splitCode( opts.l )
         tokenizeCode( opts.l, opts.a )
