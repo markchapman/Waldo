@@ -10,11 +10,31 @@ from csv         import DictWriter
 from glob        import glob
 from math        import sqrt
 from optparse    import OptionParser
-from os          import curdir
+from os          import curdir, remove
 from os.path     import join, splitext
 from re          import match
 from subprocess  import call
 from sys         import argv
+
+
+# Separates assembly code into a file for each function
+def splitAssembly( f ) :
+    with open( f ) as fin:
+        (b, e) = splitext( f )
+        fout = None
+        for line in fin :
+            line = line.strip()
+            if line.endswith( '>:' ) :
+                if fout :
+                    fout.close()
+                i = line.find( '<' ) + 1
+                j = line.find( '>:' )
+                fout = open( b + '.' + line[i:j] + '.s', 'w' )
+            elif fout and line.find( ':\t' ) > 0 :
+                i = line.find( '\t', line.find( ':\t' ) + 2 ) + 1
+                print >>fout, line[i:]
+        if fout :
+            fout.close()
 
 
 # Splits a directory of C code into individual files of assembly code for each function
@@ -31,19 +51,20 @@ def splitCode( d ) :
         call( ['objdump', '-d', b + '.o'] , stdout=open( b + '.s', 'w' ) )
 
         # separates assembly code into a file for each function
-        with open( b + '.s' ) as fin:
-            fout = None
-            for line in fin :
-                if fout and len( line ) > 27 and line[4] == ':' :
-                    print >>fout, line[28:],
-                else :
-                    m = match( r'[0-9a-fA-F]{8} <(\w+)>:', line )
-                    if m :
-                        if fout :
-                            fout.close()
-                        fout = open( b + '.' + m.group(1) + '.s', 'w' )
-            if fout :
-                fout.close()
+        splitAssembly( b + '.s' )
+
+
+# Splits a directory of executables into individual files of assembly code for each function
+def splitExecutables( d ) :
+
+    # loops over all executables
+    for exe in glob( join( d, '*.exe' ) ) :
+
+        # dumps assembly from executable files
+        call( ['objdump', '-d', exe] , stdout=open( exe + '.s', 'w' ) )
+
+        # separates assembly code into a file for each function
+        splitAssembly( exe + '.s' )
 
 
 # Tokenizes a directory of assembly code into a more abstract representation (tunable amount t)
@@ -52,6 +73,8 @@ def tokenizeCode( d, t ) :
     # maps instructions, jumps, values, and registers to indexed, abstract identifiers
     if t > 0 :
         for fs in glob( join( d, '*.*.s' ) ) :
+            if fs.endswith( 'exe.s' ) :
+                continue
             (b, e) = splitext( fs )
             (lines, ins, jmp, val, reg, mst, mhp) = ( list(), list(), list(), list(), list(), list(), list() )
 
@@ -61,7 +84,7 @@ def tokenizeCode( d, t ) :
                     split = line.split( None, 1 )
 
                     # reads instruction
-                    s = split[0].strip()
+                    s = split[0].strip() if len( split ) > 0 else line
                     if s not in ins :
                         ins.append( s )
                     l = "I" if t > 1 else "I" + str( ins.index( s ) )
@@ -159,7 +182,8 @@ def readNGramFile( d ) :
 
 
 # Fingerprinting keeps at most unique k n-grams per function
-def fingerprint( d, c, k, n ) :
+def fingerprint( d, c, k, n, s ) :
+    fp = dict()
     for t in glob( join( d, '*.*.t' ) ) :
         (b, e) = splitext( t )
         ngrams = readNGramsInFile( t, n )
@@ -173,17 +197,15 @@ def fingerprint( d, c, k, n ) :
                 break
             while len( ngrams ) > k and ng in ngrams :
                 ngrams.remove( ng )
-        with open( b + '.fp', 'w' ) as fout :
-            print >>fout, ngrams
+        fp[b] = ngrams
+    with open( join( d, 'fingerprints-' + s + '.txt' ), 'w' ) as fout :
+        print >>fout, fp
 
 
 # Reads in fingerprint files
-def readFingerprintFiles( d ) :
-    fp = dict()
-    for f in glob( join( opts.u, '*.*.fp' ) ) :
-        with open( f ) as fin :
-            fp[f] = eval( fin.readline() )
-    return fp
+def readFingerprintsFile( d, s ) :
+    with open( join( d, 'fingerprints-' + s + '.txt' ) ) as fin :
+        return eval( fin.readline() )
 
 
 # Scores similarity between two fingerprint sets, returns (0->1, 0->1)
@@ -232,6 +254,27 @@ def writeDistancesInSpreadsheet( fpd, f ) :
             writer.writerow( row )
 
 
+# Prints out function pairs with distances below a given threshold
+def reportSimilarities( fpd, t ) :
+    rows = fpd.items()
+    rows.sort()
+    for (key, row) in rows :
+        cols = row.items()
+        cols.sort()
+        for (key2, col) in cols :
+            if col < t :
+                print key, '<->', key2, ':', col
+
+
+# Erases raw assembly and tokenized assembly files in given directory
+def cleanupDirectory( d ) :
+    for f in glob( join( d, '*.*.[st]' ) ) :
+        if not f.endswith( 'exe.s' ) :
+            remove( f )
+    for f in glob( join( d, '*.o' ) ) :
+        remove( f )
+
+
 # Parses command line arguments
 def runOptionParser() :
     parser = OptionParser()
@@ -260,12 +303,16 @@ if __name__ == '__main__' :
         splitCode( opts.l )
         tokenizeCode( opts.l, opts.a )
         countNGrams( opts.l, opts.n )
-        c = readNGramFile( opts.l )
-        fingerprint( opts.l, c, opts.k, opts.n )
-    if not opts.l == opts.u :
-        c = readNGramFile( opts.l )
-        fingerprint( opts.u, c, opts.k, opts.n )
-    fpl = readFingerprintFiles( opts.l )
-    fpu = readFingerprintFiles( opts.u )
-    fpd = allFingerprintDistances( fpl, fpu )
-    writeDistancesInSpreadsheet( fpd, 'fingerprints.csv' )
+    c = readNGramFile( opts.l )
+    if not opts.skip_library :
+        fingerprint( opts.l, c, opts.k, opts.n, 'lib' )
+        cleanupDirectory( opts.l )
+    splitExecutables( opts.u )
+    tokenizeCode( opts.u, opts.a )
+    fingerprint( opts.u, c, opts.k, opts.n, 'exe' )
+    cleanupDirectory( opts.u )
+    fpl = readFingerprintsFile( opts.l, 'lib' )
+    fpu = readFingerprintsFile( opts.u, 'exe' )
+    fpd = allFingerprintDistances( fpu, fpl )
+    writeDistancesInSpreadsheet( fpd, join( opts.u, 'fingerprints.csv' ) )
+    reportSimilarities( fpd, 0.5 )
