@@ -30,9 +30,11 @@ def splitAssembly( f ) :
                 i = line.find( '<' ) + 1
                 j = line.find( '>:' )
                 fout = open( b + '.' + line[i:j] + '.s', 'w' )
-            elif fout and line.find( ':\t' ) > 0 :
-                i = line.find( '\t', line.find( ':\t' ) + 2 ) + 1
-                print >>fout, line[i:]
+            elif fout and line.count( '\t' ) > 1 :
+                i = line.find( ':\t' )
+                j = line.find( '\t', i + 2 ) + 1
+                if i > 0 and j > i :
+                    print >>fout, line[j:].strip()
         if fout :
             fout.close()
 
@@ -70,13 +72,43 @@ def splitExecutables( d ) :
 # Tokenizes a directory of assembly code into a more abstract representation (tunable amount t)
 def tokenizeCode( d, t ) :
 
+    # MV: moving data, IA: integer arithmetic, FA: floating point arithmetic, LG: logic, ST: set flag,
+    # JS: jump (signed), JU: jump (unsigned), JG: jump (general), LD: load, IN: interrupt, HT: halt, NP: noop
+    ins = { 'adc':'IA', 'adcl':'IA', 'add':'IA', 'addb':'IA', 'addl':'IA', 'addw':'IA', 'and':'LG', 'andb':'LG',
+            'andl':'LG', 'bsr':'MV', 'bts':'MV', 'call':'JG', 'cbtw':'MV', 'clc':'MV', 'cld':'MV', 'cli':'MV',
+            'cmc':'MV', 'cmp':'IA', 'cmpb':'IA', 'cmpl':'IA', 'cmpw':'IA', 'cwtd':'MV', 'cwtl':'MV', 'dec':'IA',
+            'div':'IA', 'divl':'IA', 'fabs':'FA', 'fadd':'FA', 'faddl':'FA', 'faddp':'FA', 'fadds':'FA', 'fchs':'FA',
+            'fdiv':'FA', 'fdivl':'FA', 'fdivp':'FA', 'fdivr':'FA', 'fdivrl':'FA', 'fdivrp':'FA', 'fdivs':'FA',
+            'fildl':'MV', 'fildll':'MV', 'fistl':'MV', 'fistpl':'MV', 'fistpll':'MV', 'fld':'MV', 'fld1':'MV',
+            'fldcw':'MV', 'fldl':'MV', 'flds':'MV', 'fldt':'MV', 'fldz':'MV', 'fmul':'FA', 'fmull':'FA', 'fmulp':'FA',
+            'fmuls':'FA', 'fnstcw':'MV', 'fnstsw':'MV', 'frndint':'FA', 'fstl':'MV', 'fstp':'MV', 'fstpl':'MV',
+            'fstps':'MV', 'fstpt':'MV', 'fsts':'MV', 'fsub':'FA', 'fsubl':'FA', 'fsubp':'FA', 'fsubr':'FA',
+            'fsubrl':'FA', 'fsubrp':'FA', 'fsubs':'FA', 'fucom':'FA', 'fucomp':'FA', 'fucompp':'FA', 'fxch':'MV',
+            'hlt':'HT', 'idiv':'IA', 'idivl':'IA', 'imul':'IA', 'imull':'IA', 'in':'MV', 'inc':'IA', 'int':'IN',
+            'ja':'JU', 'jae':'JU', 'jb':'JU', 'jbe':'JU', 'jc':'JU', 'je':'JG', 'jg':'JS', 'jge':'JS', 'jl':'JS',
+            'jle':'JS', 'jmp':'JG', 'jna':'JU', 'jnae':'JU', 'jnb':'JU', 'jnbe':'JU', 'jnc':'JU', 'jne':'JG',
+            'jng':'JS', 'jnge':'JS', 'jnl':'JS', 'jnle':'JS', 'jno':'JS', 'jnp':'JG', 'jns':'JS', 'jnz':'JG',
+            'jo':'JS', 'jp':'JG', 'jpe':'JG', 'jpo':'JG', 'js':'JS', 'jz':'JG', 'lea':'LD', 'leave':'MV', 'mov':'MV',
+            'movb':'MV', 'movl':'MV', 'movsbl':'MV', 'movsbw':'MV', 'movswl':'MV', 'movw':'MV', 'movzbl':'MV',
+            'movzbw':'MV', 'movzwl':'MV', 'mul':'IA', 'mull':'IA', 'neg':'LG', 'negl':'LG', 'nop':'NP', 'not':'LG',
+            'notl':'LG', 'or':'LG', 'orb':'LG', 'orl':'LG', 'orw':'LG', 'out':'MV', 'pop':'MV', 'popa':'MV',
+            'popf':'MV', 'push':'MV', 'pusha':'MV', 'pushf':'MV', 'pushl':'MV', 'rcl':'IA', 'rcr':'IA', 'rep':'JG',
+            'repz':'JG', 'ret':'JG', 'rol':'IA', 'ror':'IA', 'sahf':'MV', 'sal':'IA', 'sall':'IA', 'sar':'IA',
+            'sarl':'IA', 'sbb':'IA', 'sbbl':'IA', 'seta':'ST', 'setae':'ST', 'setb':'ST', 'setbe':'ST', 'sete':'ST',
+            'setg':'ST', 'setge':'ST', 'setl':'ST', 'setle':'ST', 'setne':'ST', 'setnp':'ST', 'setp':'ST', 'shl':'LG',
+            'shld':'LG', 'shll':'LG', 'shr':'LG', 'shrd':'LG', 'shrl':'LG', 'stc':'MV', 'std':'MV', 'sti':'MV',
+            'sub':'IA', 'subl':'IA', 'test':'LG', 'testb':'LG', 'testl':'LG', 'xchg':'MV', 'xor':'LG', 'xorb':'LG',
+            'xorl':'LG' }
+
+    odd = list()
+
     # maps instructions, jumps, values, and registers to indexed, abstract identifiers
     if t > 0 :
         for fs in glob( join( d, '*.*.s' ) ) :
             if fs.endswith( 'exe.s' ) :
                 continue
             (b, e) = splitext( fs )
-            (lines, ins, jmp, val, reg, mst, mhp) = ( list(), list(), list(), list(), list(), list(), list() )
+            (lines, jmp, val, reg, mst, mhp) = ( list(), list(), list(), list(), list(), list() )
 
             # reads in assembly code
             with open( fs ) as fin :
@@ -84,16 +116,16 @@ def tokenizeCode( d, t ) :
                     split = line.split( None, 1 )
 
                     # reads instruction
-                    s = split[0].strip() if len( split ) > 0 else line
+                    s = split[0].strip() if len( split ) > 0 else line.strip()
                     if s not in ins :
-                        ins.append( s )
-                    l = "I" if t > 1 else "I" + str( ins.index( s ) )
+                        odd.append( s )
+                    l = ins[s] if s in ins else s
 
                     # reads arguments
                     if len( split ) > 1 :
 
                         # handles jumps and calls
-                        if s.startswith( 'j' ) or s.startswith( 'call' ) :
+                        if s in ins and ins[s].startswith( 'J' ) :
                             s = split[1].strip()
                             if s not in jmp :
                                 jmp.append( s )
@@ -105,7 +137,7 @@ def tokenizeCode( d, t ) :
                                 s = s.strip()
 
                                 # reads literal values
-                                if s.startswith( '$' ) or ( s.startswith( '0x' ) and not s.endswith( ')' ) ) :
+                                if s.startswith( '$' ) or ( s.startswith( '0x' ) and s.find( '(' ) < 0 ) :
                                     if s not in val :
                                         val.append( s )
                                     l += " V" if t > 1 else " V" + str( val.index( s ) )
@@ -134,6 +166,9 @@ def tokenizeCode( d, t ) :
             # writes out tokenized assembly code
             with open( b + '.t', 'w' ) as fin :
                 print >>fin, '\n'.join( lines )
+
+        if len( odd ) > 0 :
+            print 'Odd Instructions:\n' + '\n'.join( odd )
 
 
 # Reads n-grams in a single file of tokenized assembly code
@@ -268,10 +303,7 @@ def reportSimilarities( fpd, t ) :
 
 # Erases raw assembly and tokenized assembly files in given directory
 def cleanupDirectory( d ) :
-    for f in glob( join( d, '*.*.[st]' ) ) :
-        if not f.endswith( 'exe.s' ) :
-            remove( f )
-    for f in glob( join( d, '*.o' ) ) :
+    for f in glob( join( d, '*.[ost]' ) ) :
         remove( f )
 
 
