@@ -7,14 +7,16 @@ Written by: Mark Chapman
 
 from __future__  import with_statement
 from collections import Counter
+from csv         import DictReader, DictWriter
 from glob        import glob
 from linecache   import getline
+from math        import sqrt
 from optparse    import OptionParser
 from os          import curdir
 from os.path     import join, splitext
 from re          import match
 from subprocess  import call
-from sys         import argv
+from sys         import argv, stdin
 
 
 # Splits a directory of C code into individual files of assembly code for each function
@@ -35,7 +37,7 @@ def splitCode( d ) :
             fout = None
             for line in fin :
                 if fout and len( line ) > 27 and line[4] == ':' :
-                    fout.write( line[28:] )
+                    print >>fout, line[28:],
                 else :
                     m = match( r'[0-9a-fA-F]{8} <(\w+)>:', line )
                     if m :
@@ -110,31 +112,44 @@ def tokenizeCode( d, t ) :
 
             # writes out tokenized assembly code
             with open( b + '.t', 'w' ) as fin :
-                for line in lines :
-                    print >>fin, line
+                print >>fin, '\n'.join( lines )
+
+
+# Reads n-grams in a single file of tokenized assembly code
+def readNGramsInFile( f, n ) :
+    ngrams = list()
+    if n <= 1 :
+        with open( f ) as fin :
+            for line in fin :
+                ngrams.append( line.rstrip() )
+    else :
+        lines = list()
+        with open( f ) as fin :
+            for line in fin :
+                if len( lines ) < n :
+                    lines.append( line.rstrip() )
+                else :
+                    for i in range(n-1) :
+                        lines[i] = lines[i+1]
+                    lines[n-1] = line.rstrip()
+                if len( lines ) == n :
+                    ngrams.append( ' :: '.join( lines ) )
+    return ngrams
+
+
+# Counts n-grams in a single file of tokenized assembly code
+def countNGramsInFile( f, n ) :
+    counts = Counter()
+    for n in readNGramsInFile( f, n ) :
+        counts[ n ] += 1
+    return counts
 
 
 # Counts n-grams across directory of tokenized assembly code
 def countNGrams( d, n ) :
     counts = Counter()
-    if n <= 1 :
-        for t in glob( join( d, '*.*.t' ) ) :
-            with open( t ) as fin :
-                for line in fin :
-                    counts[line.rstrip()] += 1
-    else :
-        for t in glob( join( d, '*.*.t' ) ) :
-            lines = list()
-            with open( t ) as fin :
-                for line in fin :
-                    if len( lines ) < n :
-                        lines.append( line.rstrip() )
-                    else :
-                        for i in range(n-1) :
-                            lines[i] = lines[i+1]
-                        lines[n-1] = line.rstrip()
-                    if len( lines ) == n :
-                        counts[ ' :: '.join( lines ) ] += 1
+    for t in glob( join( d, '*.*.t' ) ) :
+        counts += countNGramsInFile( t, n )
     with open( join( d, 'ngrams.txt' ), 'w' ) as fout :
         print >>fout, counts
 
@@ -147,25 +162,76 @@ def readNGramFile( d ) :
 
 # Fingerprinting keeps at most unique k n-grams per function
 def fingerprint( d, c, k, n ) :
-    pass
-    # TODO: fingerprinting
+    for t in glob( join( d, '*.*.t' ) ) :
+        (b, e) = splitext( t )
+        ngrams = readNGramsInFile( t, n )
+        if not ngrams :
+            continue
+        counts = Counter()
+        for ng in ngrams :
+            counts[ng] = max( 1, c[ng] )
+        for (ng, ct) in counts.most_common() :
+            if len( ngrams ) <= k :
+                break
+            while len( ngrams ) > k and ng in ngrams :
+                ngrams.remove( ng )
+        with open( b + '.fp', 'w' ) as fout :
+            print >>fout, ngrams
+
+
+# Reads in fingerprint files
+def readFingerprintFiles( d ) :
+    fp = dict()
+    for f in glob( join( opts.u, '*.*.fp' ) ) :
+        with open( f ) as fin :
+            fp[f] = eval( fin.readline() )
+    return fp
 
 
 # Scores similarity between two fingerprint sets, returns (0->1, 0->1)
 def fingerprintSimilarity( f1, f2 ) :
-    pass
-    # TODO: similarity
+    s1 = set(f1)
+    s2 = set(f2)
+    su = s1 & s2
+    cu = float(len(su))
+    return (cu/len(s1), cu/len(s2))
 
 
 # Scores distance from similarities between two fingerprint sets, returns (0->1)
 def similarityToDistance( s1, s2 ) :
-    return 1 - math.sqrt( (s1^2 + s2^2) * 0.5 )
+    return 1 - sqrt( (s1*s1 + s2*s2) * 0.5 )
 
 
 # Scores distance between two fingerprint sets, returns (0->1)
 def fingerprintDistance( f1, f2 ) :
     (s1, s2) = fingerprintSimilarity( f1, f2 )
     return similarityToDistance( s1, s2 )
+
+
+# Calculates distances between each pair of fingerprint sets from the given lists
+def allFingerprintDistances( fp1, fp2 ) :
+    db = dict()
+    for (k1, f1) in fp1.items() :
+        row = dict()
+        for (k2, f2) in fp2.items() :
+            row[k2] = fingerprintDistance( f1, f2 )
+        db[k1] = row
+    return db
+
+
+# Writes out the fingerprint distances in a spreadsheet
+def writeDistancesInSpreadsheet( fpd, f ) :
+    with open( f, 'wb' ) as fout :
+        keys = fpd.itervalues().next().keys()
+        keys.sort()
+        keys.insert( 0, 'Function' )
+        writer = DictWriter( fout, keys )
+        writer.writeheader()
+        rows = fpd.items()
+        rows.sort()
+        for (key, row) in rows :
+            row['Function'] = key
+            writer.writerow( row )
 
 
 # Parses command line arguments
@@ -189,13 +255,19 @@ def runOptionParser( argv ) :
     return (opts, args)
 
 
-# Script entrance
+# Finds similarity of executable to library code using fingerprints
 if __name__ == '__main__' :
     (opts, args) = runOptionParser( argv )
     if not opts.skip_library :
         splitCode( opts.l )
         tokenizeCode( opts.l, opts.a )
         countNGrams( opts.l, opts.n )
-    counts = readNGramFile( opts.l )
-    for (t, c) in counts.most_common( opts.k ) :
-        print t, '...', c
+        c = readNGramFile( opts.l )
+        fingerprint( opts.l, c, opts.k, opts.n )
+    if not opts.l == opts.u :
+        c = readNGramFile( opts.l )
+        fingerprint( opts.u, c, opts.k, opts.n )
+    fpl = readFingerprintFiles( opts.l )
+    fpu = readFingerprintFiles( opts.u )
+    fpd = allFingerprintDistances( fpl, fpu )
+    writeDistancesInSpreadsheet( fpd, 'fingerprints.csv' )
