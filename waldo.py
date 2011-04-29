@@ -8,6 +8,8 @@ Written by: Mark Chapman
 from __future__  import with_statement
 from collections import Counter
 from glob        import glob
+from linecache   import getline
+from optparse    import OptionParser
 from os          import curdir
 from os.path     import join, splitext
 from re          import match
@@ -23,7 +25,7 @@ def splitCode( d ) :
         (b, e) = splitext( c )
 
         # compiles into object files
-        call( ['gcc', '-c', c] )
+        call( ['gcc', '-c', c, '-o', b + '.o'] )
 
         # dumps assembly from object files
         call( ['objdump', '-d', b + '.o'] , stdout=open( b + '.s', 'w' ) )
@@ -47,23 +49,81 @@ def splitCode( d ) :
 # Tokenizes a directory of assembly code into a more abstract representation (tunable amount t)
 def tokenizeCode( d, t ) :
 
-    # first round maps down registers, offsets, and values to Rn, On, and Vn abstract identifiers
+    # maps instructions, jumps, values, and registers to indexed, abstract identifiers
     if t > 0 :
-        pass
+        for fs in glob( join( d, '*.*.s' ) ) :
+            (b, e) = splitext( fs )
+            (lines, ins, jmp, val, reg, mst, mhp) = ( list(), list(), list(), list(), list(), list(), list() )
 
-    # TODO: finish tokenization
+            # reads in assembly code
+            with open( fs ) as fin :
+                for line in fin :
+                    split = line.split( None, 1 )
+
+                    # reads instruction
+                    s = split[0].strip()
+                    if s not in ins :
+                        ins.append( s )
+                    l = "I" if t > 1 else "I" + str( ins.index( s ) )
+
+                    # reads arguments
+                    if len( split ) > 1 :
+
+                        # handles jumps and calls
+                        if s.startswith( 'j' ) or s.startswith( 'call' ) :
+                            s = split[1].strip()
+                            if s not in jmp :
+                                jmp.append( s )
+                            l += " J" if t > 1 else " J" + str( jmp.index( s ) )
+
+                        # handles other instructions
+                        else :
+                            for s in split[1].split(',') :
+                                s = s.strip()
+
+                                # reads literal values
+                                if s.startswith( '$' ) or ( s.startswith( '0x' ) and not s.endswith( ')' ) ) :
+                                    if s not in val :
+                                        val.append( s )
+                                    l += " V" if t > 1 else " V" + str( val.index( s ) )
+
+                                # reads registers
+                                elif s.startswith( '%' ) :
+                                    if s not in reg :
+                                        reg.append( s )
+                                    l += " R" if t > 1 else " R" + str( reg.index( s ) )
+
+                                # reads stack locations
+                                elif s.endswith( '(%ebp)' ) :
+                                    if s not in mst :
+                                        mst.append( s )
+                                    l += " S" if t > 1 else " S" + str( mst.index( s ) )
+
+                                # reads heap locations
+                                else :
+                                    if s not in mhp :
+                                        mhp.append( s )
+                                    l += " H" if t > 1 else " H" + str( mhp.index( s ) )
+
+                    # stores abstracted line
+                    lines.append( l )
+
+            # writes out tokenized assembly code
+            with open( b + '.t', 'w' ) as fin :
+                for line in lines :
+                    print >>fin, line
 
 
 # Counts n-grams across directory of tokenized assembly code
 def countNGrams( d, n ) :
     counts = Counter()
     if n <= 1 :
-        for t in glob( join( d, '*.*.s' ) ) :
+        for t in glob( join( d, '*.*.t' ) ) :
             with open( t ) as fin :
                 for line in fin :
                     counts[line.rstrip()] += 1
     else :
-        for t in glob( join( d, '*.*.s' ) ) :
+        for t in glob( join( d, '*.*.t' ) ) :
             lines = list()
             with open( t ) as fin :
                 for line in fin :
@@ -75,26 +135,20 @@ def countNGrams( d, n ) :
                         lines[n-1] = line.rstrip()
                     if len( lines ) == n :
                         counts[ ' :: '.join( lines ) ] += 1
-    with open( join( d, 'ngrams.txt'), 'w' ) as fout :
+    with open( join( d, 'ngrams.txt' ), 'w' ) as fout :
         print >>fout, counts
 
 
 # Reads in n-gram counts across corpus
 def readNGramFile( d ) :
-    with open( join( d, 'ngrams.txt') ) as fin :
+    with open( join( d, 'ngrams.txt' ) ) as fin :
         return eval( fin.readline() )
 
 
-# Fingerprints keep most unique k n-grams at block level
-def fingerprintBlocks( d, k, c ) :
+# Fingerprinting keeps at most unique k n-grams per function
+def fingerprint( d, c, k, n ) :
     pass
-    # TODO: fingerprinting (maximum k * n tokens per block)
-
-
-# Lifts fingerprints from blocks up to function level
-def fingerprintFunctions( d, f ) :
-    pass
-    # TODO: fingerprinting functions
+    # TODO: fingerprinting
 
 
 # Scores similarity between two fingerprint sets, returns (0->1, 0->1)
@@ -114,11 +168,34 @@ def fingerprintDistance( f1, f2 ) :
     return similarityToDistance( s1, s2 )
 
 
+# Parses command line arguments
+def runOptionParser( argv ) :
+    parser = OptionParser()
+    parser.add_option('-l', '--dlib', dest='l', metavar='DLIB',
+        help='directory of library code [ default : current ]' )
+    parser.add_option('-u', '--duser', dest='u', metavar='DUSER',
+        help='directory of user code [ default : current ]' )
+    parser.add_option('-a', '--abstraction', type=int, default=1, dest='a', metavar='ABS',
+        help='amount of abstraction [ <= 0 : none, 1 : map down repeats (default), >= 2 : map down all ]' )
+    parser.add_option('-n', type=int, default=4, dest='n', metavar='N',
+        help='number of lines combined in a match [ default : 4 ]' )
+    parser.add_option('-k', type=int, default=12, dest='k', metavar='K',
+        help='number of matches used in fingerprint [ default : 12 ]' )
+    parser.add_option('-s', '--skip_library', action='store_true', default=False, dest='skip_library',
+        help='skip processing the library code' )
+    (opts, args) = parser.parse_args( argv )
+    opts.l = join( curdir, opts.l ) if opts.l else curdir
+    opts.u = join( curdir, opts.u ) if opts.u else curdir
+    return (opts, args)
+
+
 # Script entrance
 if __name__ == '__main__' :
-    splitCode( curdir )
-    # tokenizeCode( curdir, 2 )
-    countNGrams( curdir, int(argv[1]) )
-    counts = readNGramFile( curdir )
-    for (t, c) in counts.most_common( int(argv[2]) ) :
+    (opts, args) = runOptionParser( argv )
+    if not opts.skip_library :
+        splitCode( opts.l )
+        tokenizeCode( opts.l, opts.a )
+        countNGrams( opts.l, opts.n )
+    counts = readNGramFile( opts.l )
+    for (t, c) in counts.most_common( opts.k ) :
         print t, '...', c
