@@ -262,7 +262,7 @@ def reportSimilarities( fpd, t ) :
         cols = row.items()
         cols.sort()
         for (key2, col) in cols :
-            if col < t :
+            if col <= t :
                 print key, '<->', key2, ':', col
 
 
@@ -288,6 +288,8 @@ def runOptionParser() :
         help='number of lines combined in a match [ default : 4 ]' )
     parser.add_option('-k', type=int, default=12, dest='k', metavar='K',
         help='number of matches used in fingerprint [ default : 12 ]' )
+    parser.add_option('-t', '--threshold', type=float, default=0.5, dest='t', metavar='THRESH',
+        help='fraction of fingerprints that can differ in similarity report [ default : 0.5 ]' )
     parser.add_option('-s', '--skip_library', action='store_true', default=False, dest='skip_library',
         help='skip processing the library code' )
     (opts, args) = parser.parse_args( argv )
@@ -315,4 +317,4 @@ if __name__ == '__main__' :
     fpu = readFingerprintsFile( opts.u, 'exe' )
     fpd = allFingerprintDistances( fpu, fpl )
     writeDistancesInSpreadsheet( fpd, join( opts.u, 'fingerprints.csv' ) )
-    reportSimilarities( fpd, 0.5 )
+    reportSimilarities( fpd, opts.t )
