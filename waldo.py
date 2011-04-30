@@ -12,7 +12,6 @@ from math        import sqrt
 from optparse    import OptionParser
 from os          import curdir, remove
 from os.path     import join, splitext
-from re          import match
 from subprocess  import call
 from sys         import argv
 
@@ -40,7 +39,7 @@ def splitAssembly( f ) :
 
 
 # Splits a directory of C code into individual files of assembly code for each function
-def splitCode( d ) :
+def splitCode( d, optimizations ) :
 
     # loops over all code snippets
     for c in glob( join( d, '*.c' ) ) :
@@ -54,6 +53,13 @@ def splitCode( d ) :
 
         # separates assembly code into a file for each function
         splitAssembly( b + '.s' )
+
+        # prepares optimized versions for an expanded library
+        if optimizations :
+            for opts in [ '-O1', '-O2', '-O3', '-Os' ] :
+                call( ['gcc', '-c', c, '-o', b + opts + '.o', opts] )
+                call( ['objdump', '-d', b + opts + '.o'] , stdout=open( b + opts + '.s', 'w' ) )
+                splitAssembly( b + opts + '.s' )
 
 
 # Splits a directory of executables into individual files of assembly code for each function
@@ -72,33 +78,33 @@ def splitExecutables( d ) :
 # Tokenizes a directory of assembly code into a more abstract representation (tunable amount t)
 def tokenizeCode( d, t ) :
 
-    # MV: moving data, IA: integer arithmetic, FA: floating point arithmetic, LG: logic, ST: set flag,
-    # JS: jump (signed), JU: jump (unsigned), JG: jump (general), LD: load, IN: interrupt, HT: halt, NP: noop
+    # MV: moving data, IA: integer arithmetic, FA: floating point arithmetic, LG: logic, ST: strings,
+    # JS: jump (signed), JU: jump (unsigned), JG: jump (general), SF: set flags, MS: miscellaneous
     ins = { 'adc':'IA', 'adcl':'IA', 'add':'IA', 'addb':'IA', 'addl':'IA', 'addw':'IA', 'and':'LG', 'andb':'LG',
             'andl':'LG', 'bsr':'MV', 'bts':'MV', 'call':'JG', 'cbtw':'MV', 'clc':'MV', 'cld':'MV', 'cli':'MV',
-            'cmc':'MV', 'cmp':'IA', 'cmpb':'IA', 'cmpl':'IA', 'cmpw':'IA', 'cwtd':'MV', 'cwtl':'MV', 'dec':'IA',
-            'div':'IA', 'divl':'IA', 'fabs':'FA', 'fadd':'FA', 'faddl':'FA', 'faddp':'FA', 'fadds':'FA', 'fchs':'FA',
-            'fdiv':'FA', 'fdivl':'FA', 'fdivp':'FA', 'fdivr':'FA', 'fdivrl':'FA', 'fdivrp':'FA', 'fdivs':'FA',
-            'fildl':'MV', 'fildll':'MV', 'fistl':'MV', 'fistpl':'MV', 'fistpll':'MV', 'fld':'MV', 'fld1':'MV',
-            'fldcw':'MV', 'fldl':'MV', 'flds':'MV', 'fldt':'MV', 'fldz':'MV', 'fmul':'FA', 'fmull':'FA', 'fmulp':'FA',
-            'fmuls':'FA', 'fnstcw':'MV', 'fnstsw':'MV', 'frndint':'FA', 'fstl':'MV', 'fstp':'MV', 'fstpl':'MV',
-            'fstps':'MV', 'fstpt':'MV', 'fsts':'MV', 'fsub':'FA', 'fsubl':'FA', 'fsubp':'FA', 'fsubr':'FA',
-            'fsubrl':'FA', 'fsubrp':'FA', 'fsubs':'FA', 'fucom':'FA', 'fucomp':'FA', 'fucompp':'FA', 'fxch':'MV',
-            'hlt':'HT', 'idiv':'IA', 'idivl':'IA', 'imul':'IA', 'imull':'IA', 'in':'MV', 'inc':'IA', 'int':'IN',
-            'ja':'JU', 'jae':'JU', 'jb':'JU', 'jbe':'JU', 'jc':'JU', 'je':'JG', 'jg':'JS', 'jge':'JS', 'jl':'JS',
-            'jle':'JS', 'jmp':'JG', 'jna':'JU', 'jnae':'JU', 'jnb':'JU', 'jnbe':'JU', 'jnc':'JU', 'jne':'JG',
-            'jng':'JS', 'jnge':'JS', 'jnl':'JS', 'jnle':'JS', 'jno':'JS', 'jnp':'JG', 'jns':'JS', 'jnz':'JG',
-            'jo':'JS', 'jp':'JG', 'jpe':'JG', 'jpo':'JG', 'js':'JS', 'jz':'JG', 'lea':'LD', 'leave':'MV', 'mov':'MV',
-            'movb':'MV', 'movl':'MV', 'movsbl':'MV', 'movsbw':'MV', 'movswl':'MV', 'movw':'MV', 'movzbl':'MV',
-            'movzbw':'MV', 'movzwl':'MV', 'mul':'IA', 'mull':'IA', 'neg':'LG', 'negl':'LG', 'nop':'NP', 'not':'LG',
-            'notl':'LG', 'or':'LG', 'orb':'LG', 'orl':'LG', 'orw':'LG', 'out':'MV', 'pop':'MV', 'popa':'MV',
-            'popf':'MV', 'push':'MV', 'pusha':'MV', 'pushf':'MV', 'pushl':'MV', 'rcl':'IA', 'rcr':'IA', 'rep':'JG',
-            'repz':'JG', 'ret':'JG', 'rol':'IA', 'ror':'IA', 'sahf':'MV', 'sal':'IA', 'sall':'IA', 'sar':'IA',
-            'sarl':'IA', 'sbb':'IA', 'sbbl':'IA', 'seta':'ST', 'setae':'ST', 'setb':'ST', 'setbe':'ST', 'sete':'ST',
-            'setg':'ST', 'setge':'ST', 'setl':'ST', 'setle':'ST', 'setne':'ST', 'setnp':'ST', 'setp':'ST', 'shl':'LG',
-            'shld':'LG', 'shll':'LG', 'shr':'LG', 'shrd':'LG', 'shrl':'LG', 'stc':'MV', 'std':'MV', 'sti':'MV',
-            'sub':'IA', 'subl':'IA', 'test':'LG', 'testb':'LG', 'testl':'LG', 'xchg':'MV', 'xor':'LG', 'xorb':'LG',
-            'xorl':'LG' }
+            'cltd': 'MV', 'cmc':'MV', 'cmp':'IA', 'cmpb':'IA', 'cmpl':'IA', 'cmpw':'IA', 'cwtd':'MV', 'cwtl':'MV',
+            'dec':'IA', 'div':'IA', 'divl':'IA', 'fabs':'FA', 'fadd':'FA', 'faddl':'FA', 'faddp':'FA', 'fadds':'FA',
+            'fchs':'FA', 'fdiv':'FA', 'fdivl':'FA', 'fdivp':'FA', 'fdivr':'FA', 'fdivrl':'FA', 'fdivrp':'FA',
+            'fdivs':'FA', 'fildl':'MV', 'fildll':'MV', 'fistl':'MV', 'fistpl':'MV', 'fistpll':'MV', 'fld':'MV',
+            'fld1':'MV', 'fldcw':'MV', 'fldl':'MV', 'flds':'MV', 'fldt':'MV', 'fldz':'MV', 'fmul':'FA', 'fmull':'FA',
+            'fmulp':'FA', 'fmuls':'FA', 'fnstcw':'MV', 'fnstsw':'MV', 'frndint':'FA', 'fstl':'MV', 'fstp':'MV',
+            'fstpl':'MV', 'fstps':'MV', 'fstpt':'MV', 'fsts':'MV', 'fsub':'FA', 'fsubl':'FA', 'fsubp':'FA',
+            'fsubr':'FA', 'fsubrl':'FA', 'fsubrp':'FA', 'fsubs':'FA', 'fucom':'FA', 'fucomp':'FA', 'fucompp':'FA',
+            'fxch':'MV', 'hlt':'MS', 'idiv':'IA', 'idivl':'IA', 'imul':'IA', 'imull':'IA', 'in':'MV', 'inc':'IA',
+            'int':'MS', 'ja':'JU', 'jae':'JU', 'jb':'JU', 'jbe':'JU', 'jc':'JU', 'je':'JG', 'jg':'JS', 'jge':'JS',
+            'jl':'JS', 'jle':'JS', 'jmp':'JG', 'jna':'JU', 'jnae':'JU', 'jnb':'JU', 'jnbe':'JU', 'jnc':'JU',
+            'jne':'JG', 'jng':'JS', 'jnge':'JS', 'jnl':'JS', 'jnle':'JS', 'jno':'JS', 'jnp':'JG', 'jns':'JS',
+            'jnz':'JG', 'jo':'JS', 'jp':'JG', 'jpe':'JG', 'jpo':'JG', 'js':'JS', 'jz':'JG', 'lea':'MS', 'leave':'MV',
+            'mov':'MV', 'movb':'MV', 'movl':'MV', 'movsbl':'ST', 'movsbw':'ST', 'movswl':'ST', 'movw':'MV',
+            'movzbl':'MV', 'movzbw':'MV', 'movzwl':'MV', 'mul':'IA', 'mull':'IA', 'neg':'LG', 'negl':'LG', 'nop':'MS',
+            'not':'LG', 'notl':'LG', 'or':'LG', 'orb':'LG', 'orl':'LG', 'orw':'LG', 'out':'MV', 'pop':'MV',
+            'popa':'MV', 'popf':'MV', 'push':'MV', 'pusha':'MV', 'pushf':'MV', 'pushl':'MV', 'rcl':'IA', 'rcr':'IA',
+            'rep':'ST', 'repz':'ST', 'ret':'JG', 'rol':'IA', 'ror':'IA', 'sahf':'MV', 'sal':'IA', 'sall':'IA',
+            'sar':'IA', 'sarl':'IA', 'sbb':'IA', 'sbbl':'IA', 'seta':'SF', 'setae':'SF', 'setb':'SF', 'setbe':'SF',
+            'sete':'SF', 'setg':'SF', 'setge':'SF', 'setl':'SF', 'setle':'SF', 'setne':'SF', 'setnp':'SF', 'setp':'SF',
+            'shl':'LG', 'shld':'LG', 'shll':'LG', 'shr':'LG', 'shrd':'LG', 'shrl':'LG', 'stc':'MV', 'std':'MV',
+            'sti':'MV', 'sub':'IA', 'subl':'IA', 'test':'LG', 'testb':'LG', 'testl':'LG', 'xchg':'MV', 'xor':'LG',
+            'xorb':'LG', 'xorl':'LG' }
 
     odd = list()
 
@@ -108,7 +114,7 @@ def tokenizeCode( d, t ) :
             if fs.endswith( 'exe.s' ) :
                 continue
             (b, e) = splitext( fs )
-            (lines, jmp, val, reg, mst, mhp) = ( list(), list(), list(), list(), list(), list() )
+            (lines, jmp, val, reg, stk, mem) = ( list(), list(), list(), list(), list(), list() )
 
             # reads in assembly code
             with open( fs ) as fin :
@@ -119,6 +125,8 @@ def tokenizeCode( d, t ) :
                     s = split[0].strip() if len( split ) > 0 else line.strip()
                     if s not in ins :
                         odd.append( s )
+                    if s.startswith( 'rep' ) :
+                        split = split[1].split( None, 1 )
                     l = ins[s] if s in ins else s
 
                     # reads arguments
@@ -133,32 +141,43 @@ def tokenizeCode( d, t ) :
 
                         # handles other instructions
                         else :
+                            prefix = None
                             for s in split[1].split(',') :
                                 s = s.strip()
 
+                                # checks for prefix: comma in middle of memory address
+                                if prefix :
+                                    s = prefix + "," + s
+                                    prefix = None
+                                i = s.find( '(' )
+                                j = s.find( ')' )
+                                if i >= 0 and j < 0 :
+                                    prefix = s
+                                    continue
+
                                 # reads literal values
-                                if s.startswith( '$' ) or ( s.startswith( '0x' ) and s.find( '(' ) < 0 ) :
+                                if s.startswith( '$' ) :
                                     if s not in val :
                                         val.append( s )
                                     l += " V" if t > 1 else " V" + str( val.index( s ) )
 
                                 # reads registers
-                                elif s.startswith( '%' ) :
+                                elif s.startswith( '%' ) and s.find( ':' ) < 0 :
                                     if s not in reg :
                                         reg.append( s )
                                     l += " R" if t > 1 else " R" + str( reg.index( s ) )
 
                                 # reads stack locations
-                                elif s.endswith( '(%ebp)' ) :
-                                    if s not in mst :
-                                        mst.append( s )
-                                    l += " S" if t > 1 else " S" + str( mst.index( s ) )
+                                elif s.find( '(%ebp' ) >= 0 or s.find( '(%esp' ) >= 0 or s.startswith( '%ss:' ) :
+                                    if s not in stk :
+                                        stk.append( s )
+                                    l += " S" if t > 1 else " S" + str( stk.index( s ) )
 
                                 # reads heap locations
                                 else :
-                                    if s not in mhp :
-                                        mhp.append( s )
-                                    l += " H" if t > 1 else " H" + str( mhp.index( s ) )
+                                    if s not in mem :
+                                        mem.append( s )
+                                    l += " M" if t > 1 else " M" + str( mem.index( s ) )
 
                     # stores abstracted line
                     lines.append( l )
@@ -167,6 +186,7 @@ def tokenizeCode( d, t ) :
             with open( b + '.t', 'w' ) as fin :
                 print >>fin, '\n'.join( lines )
 
+        # prints out any missed instructions
         if len( odd ) > 0 :
             print 'Odd Instructions:\n' + '\n'.join( odd )
 
@@ -324,6 +344,8 @@ def runOptionParser() :
         help='fraction of fingerprints that can differ in similarity report [ default : 0.5 ]' )
     parser.add_option('-s', '--skip_library', action='store_true', default=False, dest='skip_library',
         help='skip processing the library code' )
+    parser.add_option('-o', '--optimizations', action='store_true', default=False, dest='optimizations',
+        help='build optimized versions of library code (-O1,-O2,-O3,-Os)' )
     (opts, args) = parser.parse_args( argv )
     opts.l = join( curdir, opts.l ) if opts.l else curdir
     opts.u = join( curdir, opts.u ) if opts.u else curdir
@@ -334,7 +356,7 @@ def runOptionParser() :
 if __name__ == '__main__' :
     (opts, args) = runOptionParser()
     if not opts.skip_library :
-        splitCode( opts.l )
+        splitCode( opts.l, opts.optimizations )
         tokenizeCode( opts.l, opts.a )
         countNGrams( opts.l, opts.n )
     c = readNGramFile( opts.l )
