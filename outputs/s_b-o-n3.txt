@@ -1,0 +1,11 @@
+./b/sll-reverse.exe.__i686.get_pc_thunk.bx <-> ./s/list-O2.Find : 0.2546440075
+./b/sll-reverse.exe.__i686.get_pc_thunk.bx <-> ./s/list-O2.FindPrevious : 0.2546440075
+./b/sll-reverse.exe.__i686.get_pc_thunk.bx <-> ./s/list-O3.Find : 0.2546440075
+./b/sll-reverse.exe.__i686.get_pc_thunk.bx <-> ./s/list-O3.FindPrevious : 0.2546440075
+./b/sll-reverse.exe.__i686.get_pc_thunk.bx <-> ./s/tree-O2.Find : 0.209430584958
+./b/sll-reverse.exe.__i686.get_pc_thunk.bx <-> ./s/tree-O2.FindMin : 0.209430584958
+./b/sll-reverse.exe.__i686.get_pc_thunk.bx <-> ./s/tree-O3.Insert : 0.209430584958
+./b/sll-reverse.exe.__libc_csu_fini <-> ./s/tree-O2.MakeEmpty : 0.28313956108
+./b/sll-reverse.exe._init <-> ./s/tree-O1.FindMin : 0.28130053178
+./b/sll-reverse.exe.list_nodes_in_reverse_order <-> ./s/list.FindPrevious : 0.48101145251
+./b/sll-reverse.exe.reverse_with_recursion <-> ./s/tree.FindMin : 0.484401305385

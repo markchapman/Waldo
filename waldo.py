@@ -8,11 +8,10 @@ Written by: Mark Chapman
 from collections import Counter
 from csv         import DictWriter
 from glob        import glob
-from math        import sqrt
+from math        import log, sqrt
 from optparse    import OptionParser
 from os          import curdir, remove
 from os.path     import join, splitext
-from re          import match
 from subprocess  import call
 from sys         import argv
 
@@ -40,7 +39,7 @@ def splitAssembly( f ) :
 
 
 # Splits a directory of C code into individual files of assembly code for each function
-def splitCode( d ) :
+def splitCode( d, optimizations ) :
 
     # loops over all code snippets
     for c in glob( join( d, '*.c' ) ) :
@@ -54,6 +53,13 @@ def splitCode( d ) :
 
         # separates assembly code into a file for each function
         splitAssembly( b + '.s' )
+
+        # prepares optimized versions for an expanded library
+        if optimizations :
+            for opts in [ '-O1', '-O2', '-O3', '-Os' ] :
+                call( ['gcc', '-c', c, '-o', b + opts + '.o', opts] )
+                call( ['objdump', '-d', b + opts + '.o'] , stdout=open( b + opts + '.s', 'w' ) )
+                splitAssembly( b + opts + '.s' )
 
 
 # Splits a directory of executables into individual files of assembly code for each function
@@ -69,46 +75,86 @@ def splitExecutables( d ) :
         splitAssembly( exe + '.s' )
 
 
+# Builds an instruction set abstraction
+def getAbstractX86Instructions () :
+    return {
+        # FC: function call
+        'call':'FC',
+        # FR: function return
+        'ret':'FR',
+        # MF: moving from stack
+        'leave':'MF','pop':'MF', 'popa':'MF', 'popf':'MF', 'popl':'MF',
+        # MT: moving to stack
+        'enter':'MT', 'push':'MT', 'pusha':'MT', 'pushf':'MT', 'pushl':'MT', 'fildl':'MT', 'fildll':'MT', 'fld':'MT',
+        'fld1':'MT', 'fldl':'MT', 'flds':'MT', 'fldt':'MT', 'fldz':'MT',
+        # MV: moving data
+        'fistl':'MV', 'fistpl':'MV', 'fistpll':'MV', 'fldcw':'MV', 'fnstcw':'MV', 'fnstsw':'MV', 'fstl':'MV',
+        'fstp':'MV', 'fstpl':'MV', 'fstps':'MV', 'fstpt':'MV', 'fsts':'MV', 'fxch':'MV', 'mov':'MV', 'movb':'MV',
+        'movl':'MV', 'movw':'MV', 'xchg':'MV',
+        # CT: conversion
+        'cbtw':'CT', 'cltd':'CT', 'cwtd':'CT', 'cwtl':'CT',
+        # DI: data input
+        'in':'DI',
+        # DO: data output
+        'out':'DO',
+        # IA: integer arithmetic
+        'adc':'IA', 'adcl':'IA', 'add':'IA', 'addb':'IA', 'addl':'IA', 'addw':'IA', 'dec':'IA', 'decl':'IA', 'div':'IA',
+        'divl':'IA', 'idiv':'IA', 'idivl':'IA', 'imul':'IA', 'imull':'IA', 'inc':'IA', 'incl':'IA', 'mul':'IA',
+        'mull':'IA', 'neg':'IA', 'negl':'IA', 'sbb':'IA', 'sbbl':'IA', 'sub':'IA', 'subl':'IA',
+        # FA: floating point arithmetic
+        'fabs':'FA', 'fadd':'FA', 'faddl':'FA', 'faddp':'FA', 'fadds':'FA', 'fchs':'FA', 'fdiv':'FA', 'fdivl':'FA',
+        'fdivp':'FA', 'fdivr':'FA', 'fdivrl':'FA', 'fdivrp':'FA', 'fdivs':'FA', 'fmul':'FA', 'fmull':'FA', 'fmulp':'FA',
+        'fmuls':'FA', 'frndint':'FA', 'fsub':'FA', 'fsubl':'FA', 'fsubp':'FA', 'fsubr':'FA', 'fsubrl':'FA',
+        'fsubrp':'FA', 'fsubs':'FA',
+        # BS: bitshift
+        'rcl':'BS', 'rcr':'BS', 'rol':'BS', 'ror':'BS', 'sal':'BS', 'sall':'BS', 'sar':'BS', 'sarl':'BS', 'shl':'BS',
+        'shld':'BS', 'shll':'BS', 'shr':'BS', 'shrd':'BS', 'shrl':'BS',
+        # LG: logic
+        'and':'LG', 'andb':'LG', 'andl':'LG', 'not':'LG', 'notl':'LG', 'or':'LG', 'orb':'LG', 'orl':'LG', 'orw':'LG',
+        'xor':'LG', 'xorb':'LG', 'xorl':'LG',
+        # JU: jump unconditionally
+        'jmp':'JU',
+        # CM: comparisons
+        'bsr':'CM', 'bts':'CM', 'cmp':'CM', 'cmpb':'CM', 'cmpl':'CM', 'cmpw':'CM', 'fucom':'CM', 'fucomp':'CM',
+        'fucompp':'CM', 'test':'CM', 'testb':'CM', 'testl':'CM',
+        # JS: jump conditionally (signed)
+        'jg':'JS', 'jge':'JS', 'jl':'JS', 'jle':'JS', 'jng':'JS', 'jnge':'JS', 'jnl':'JS', 'jnle':'JS', 'jno':'JS',
+        'jns':'JS', 'jo':'JS', 'js':'JS',
+        # JC: jump conditionally (unsigned)
+        'ja':'JC', 'jae':'JC', 'jb':'JC', 'jbe':'JC', 'jc':'JC', 'jna':'JC', 'jnae':'JC', 'jnb':'JC', 'jnbe':'JC',
+        'jnc':'JC',
+        # JG: jump conditionally (general)
+        'je':'JG', 'jne':'JG', 'jnp':'JG', 'jnz':'JG', 'jp':'JG', 'jpe':'JG', 'jpo':'JG', 'jz':'JG',
+        # SF: set flags
+        'lahf':'SF', 'sahf':'SF', 'seta':'SF', 'setae':'SF', 'setb':'SF', 'setbe':'SF', 'sete':'SF', 'setg':'SF',
+        'setge':'SF', 'setl':'SF', 'setle':'SF', 'setne':'SF', 'setnp':'SF', 'setp':'SF',
+        # SS: set status
+        'clc':'SS', 'cld':'SS', 'cli':'SS', 'cmc':'SS', 'stc':'SS', 'std':'SS', 'sti':'SS',
+        # ST: moving strings / static arrays
+        'movsbl':'ST', 'movsbw':'ST', 'movswl':'ST', 'movzbl':'ST', 'movzbw':'ST', 'movzwl':'ST', 'rep':'ST',
+        'repe':'ST', 'repne':'ST', 'repnz':'ST', 'repz':'ST',
+        # MH: miscellaneous (halt)
+        'hlt':'MH',
+        # MI: miscellaneous (interrupt)
+        'int':'MI',
+        # ML: miscellaneous (load effective address)
+        'lea':'ML',
+        # MN: miscellaneous (no operation)
+        'nop':'MN' }
+
+
 # Tokenizes a directory of assembly code into a more abstract representation (tunable amount t)
 def tokenizeCode( d, t ) :
 
-    # MV: moving data, IA: integer arithmetic, FA: floating point arithmetic, LG: logic, ST: set flag,
-    # JS: jump (signed), JU: jump (unsigned), JG: jump (general), LD: load, IN: interrupt, HT: halt, NP: noop
-    ins = { 'adc':'IA', 'adcl':'IA', 'add':'IA', 'addb':'IA', 'addl':'IA', 'addw':'IA', 'and':'LG', 'andb':'LG',
-            'andl':'LG', 'bsr':'MV', 'bts':'MV', 'call':'JG', 'cbtw':'MV', 'clc':'MV', 'cld':'MV', 'cli':'MV',
-            'cmc':'MV', 'cmp':'IA', 'cmpb':'IA', 'cmpl':'IA', 'cmpw':'IA', 'cwtd':'MV', 'cwtl':'MV', 'dec':'IA',
-            'div':'IA', 'divl':'IA', 'fabs':'FA', 'fadd':'FA', 'faddl':'FA', 'faddp':'FA', 'fadds':'FA', 'fchs':'FA',
-            'fdiv':'FA', 'fdivl':'FA', 'fdivp':'FA', 'fdivr':'FA', 'fdivrl':'FA', 'fdivrp':'FA', 'fdivs':'FA',
-            'fildl':'MV', 'fildll':'MV', 'fistl':'MV', 'fistpl':'MV', 'fistpll':'MV', 'fld':'MV', 'fld1':'MV',
-            'fldcw':'MV', 'fldl':'MV', 'flds':'MV', 'fldt':'MV', 'fldz':'MV', 'fmul':'FA', 'fmull':'FA', 'fmulp':'FA',
-            'fmuls':'FA', 'fnstcw':'MV', 'fnstsw':'MV', 'frndint':'FA', 'fstl':'MV', 'fstp':'MV', 'fstpl':'MV',
-            'fstps':'MV', 'fstpt':'MV', 'fsts':'MV', 'fsub':'FA', 'fsubl':'FA', 'fsubp':'FA', 'fsubr':'FA',
-            'fsubrl':'FA', 'fsubrp':'FA', 'fsubs':'FA', 'fucom':'FA', 'fucomp':'FA', 'fucompp':'FA', 'fxch':'MV',
-            'hlt':'HT', 'idiv':'IA', 'idivl':'IA', 'imul':'IA', 'imull':'IA', 'in':'MV', 'inc':'IA', 'int':'IN',
-            'ja':'JU', 'jae':'JU', 'jb':'JU', 'jbe':'JU', 'jc':'JU', 'je':'JG', 'jg':'JS', 'jge':'JS', 'jl':'JS',
-            'jle':'JS', 'jmp':'JG', 'jna':'JU', 'jnae':'JU', 'jnb':'JU', 'jnbe':'JU', 'jnc':'JU', 'jne':'JG',
-            'jng':'JS', 'jnge':'JS', 'jnl':'JS', 'jnle':'JS', 'jno':'JS', 'jnp':'JG', 'jns':'JS', 'jnz':'JG',
-            'jo':'JS', 'jp':'JG', 'jpe':'JG', 'jpo':'JG', 'js':'JS', 'jz':'JG', 'lea':'LD', 'leave':'MV', 'mov':'MV',
-            'movb':'MV', 'movl':'MV', 'movsbl':'MV', 'movsbw':'MV', 'movswl':'MV', 'movw':'MV', 'movzbl':'MV',
-            'movzbw':'MV', 'movzwl':'MV', 'mul':'IA', 'mull':'IA', 'neg':'LG', 'negl':'LG', 'nop':'NP', 'not':'LG',
-            'notl':'LG', 'or':'LG', 'orb':'LG', 'orl':'LG', 'orw':'LG', 'out':'MV', 'pop':'MV', 'popa':'MV',
-            'popf':'MV', 'push':'MV', 'pusha':'MV', 'pushf':'MV', 'pushl':'MV', 'rcl':'IA', 'rcr':'IA', 'rep':'JG',
-            'repz':'JG', 'ret':'JG', 'rol':'IA', 'ror':'IA', 'sahf':'MV', 'sal':'IA', 'sall':'IA', 'sar':'IA',
-            'sarl':'IA', 'sbb':'IA', 'sbbl':'IA', 'seta':'ST', 'setae':'ST', 'setb':'ST', 'setbe':'ST', 'sete':'ST',
-            'setg':'ST', 'setge':'ST', 'setl':'ST', 'setle':'ST', 'setne':'ST', 'setnp':'ST', 'setp':'ST', 'shl':'LG',
-            'shld':'LG', 'shll':'LG', 'shr':'LG', 'shrd':'LG', 'shrl':'LG', 'stc':'MV', 'std':'MV', 'sti':'MV',
-            'sub':'IA', 'subl':'IA', 'test':'LG', 'testb':'LG', 'testl':'LG', 'xchg':'MV', 'xor':'LG', 'xorb':'LG',
-            'xorl':'LG' }
-
-    odd = list()
-
     # maps instructions, jumps, values, and registers to indexed, abstract identifiers
     if t > 0 :
+        ins = getAbstractX86Instructions()
+        odd = list()
         for fs in glob( join( d, '*.*.s' ) ) :
             if fs.endswith( 'exe.s' ) :
                 continue
             (b, e) = splitext( fs )
-            (lines, jmp, val, reg, mst, mhp) = ( list(), list(), list(), list(), list(), list() )
+            (lines, jmp, val, reg, stk, mem) = ( list(), list(), list(), list(), list(), list() )
 
             # reads in assembly code
             with open( fs ) as fin :
@@ -117,15 +163,17 @@ def tokenizeCode( d, t ) :
 
                     # reads instruction
                     s = split[0].strip() if len( split ) > 0 else line.strip()
-                    if s not in ins :
+                    if s not in ins and s not in odd :
                         odd.append( s )
+                    if s.startswith( 'rep' ) :
+                        split = split[1].split( None, 1 )
                     l = ins[s] if s in ins else s
 
                     # reads arguments
                     if len( split ) > 1 :
 
                         # handles jumps and calls
-                        if s in ins and ins[s].startswith( 'J' ) :
+                        if s in ins and ins[s] in [ 'FC', 'JU', 'JS', 'JC', 'JG' ] :
                             s = split[1].strip()
                             if s not in jmp :
                                 jmp.append( s )
@@ -133,32 +181,48 @@ def tokenizeCode( d, t ) :
 
                         # handles other instructions
                         else :
+                            prefix = None
                             for s in split[1].split(',') :
                                 s = s.strip()
 
+                                # checks for prefix: comma in middle of memory address
+                                if prefix :
+                                    s = prefix + "," + s
+                                    prefix = None
+                                i = s.find( '(' )
+                                j = s.find( ')' )
+                                if i >= 0 and j < 0 :
+                                    prefix = s
+                                    continue
+
                                 # reads literal values
-                                if s.startswith( '$' ) or ( s.startswith( '0x' ) and s.find( '(' ) < 0 ) :
+                                if s.startswith( '$' ) :
                                     if s not in val :
                                         val.append( s )
                                     l += " V" if t > 1 else " V" + str( val.index( s ) )
 
                                 # reads registers
-                                elif s.startswith( '%' ) :
+                                elif s.startswith( '%' ) and s.find( ':' ) < 0 :
                                     if s not in reg :
                                         reg.append( s )
                                     l += " R" if t > 1 else " R" + str( reg.index( s ) )
 
                                 # reads stack locations
-                                elif s.endswith( '(%ebp)' ) :
-                                    if s not in mst :
-                                        mst.append( s )
-                                    l += " S" if t > 1 else " S" + str( mst.index( s ) )
+                                elif s.find( '(%ebp' ) >= 0 or s.find( '(%esp' ) >= 0 or s.startswith( '%ss:' ) :
+                                    if s not in stk :
+                                        stk.append( s )
+                                    l += " S" if t > 1 else " S" + str( stk.index( s ) )
 
-                                # reads heap locations
+                                # reads pointer dereferences
+                                elif i >= 0 and s[i+1:i+5] in reg :
+                                    l += " P" if t > 1 else " P" + str( reg.index( s[i+1:i+5] ) )
+
+                                # reads other memory locations
                                 else :
-                                    if s not in mhp :
-                                        mhp.append( s )
-                                    l += " H" if t > 1 else " H" + str( mhp.index( s ) )
+                                    if s not in mem :
+                                        mem.append( s )
+                                    l += " M" if t > 1 else " M" + str( mem.index( s ) )
+                                    
 
                     # stores abstracted line
                     lines.append( l )
@@ -167,8 +231,48 @@ def tokenizeCode( d, t ) :
             with open( b + '.t', 'w' ) as fin :
                 print >>fin, '\n'.join( lines )
 
+        # prints out any missed instructions
         if len( odd ) > 0 :
             print 'Odd Instructions:\n' + '\n'.join( odd )
+
+
+# Renumbers terms in n-grams
+def renumberNGram( ngram ) :
+    (lines, jmp, val, reg, stk, mem) = ( list(), list(), list(), list(), list(), list() )
+    for line in ngram :
+        split = line.split()
+        l = split[0]
+        if len( split ) > 1 :
+            for s in split[1:] :
+                if len( s ) > 1 :
+                    if s[0] == 'J' :
+                        if s not in jmp :
+                            jmp.append( s )
+                        l += ' J' + str( jmp.index( s ) )
+                    elif s[0] == 'V' :
+                        if s not in val :
+                            val.append( s )
+                        l += ' V' + str( val.index( s ) )
+                    elif s[0] == 'R' :
+                        if s not in reg :
+                            reg.append( s )
+                        l += ' R' + str( reg.index( s ) )
+                    elif s[0] == 'S' :
+                        if s not in stk :
+                            stk.append( s )
+                        l += ' S' + str( stk.index( s ) )
+                    elif s[0] == 'P' :
+                        if ('R' + s[1]) not in reg :
+                            reg.append( 'R' + s[1] )
+                        l += ' P' + str( reg.index( 'R' + s[1] ) )
+                    elif s[0] == 'M' :
+                        if s not in mem :
+                            mem.append( s )
+                        l += ' M' + str( mem.index( s ) )
+                    else :
+                        l += ' ' + s
+        lines.append( l )
+    return lines
 
 
 # Reads n-grams in a single file of tokenized assembly code
@@ -177,7 +281,7 @@ def readNGramsInFile( f, n ) :
     if n <= 1 :
         with open( f ) as fin :
             for line in fin :
-                ngrams.append( line.rstrip() )
+                ngrams.append( renumberNGram( [ line.rstrip() ] ) )
     else :
         lines = list()
         with open( f ) as fin :
@@ -189,7 +293,7 @@ def readNGramsInFile( f, n ) :
                         lines[i] = lines[i+1]
                     lines[n-1] = line.rstrip()
                 if len( lines ) == n :
-                    ngrams.append( ' :: '.join( lines ) )
+                    ngrams.append( ' :: '.join( renumberNGram( lines ) ) )
     return ngrams
 
 
@@ -203,35 +307,59 @@ def countNGramsInFile( f, n ) :
 
 # Counts n-grams across directory of tokenized assembly code
 def countNGrams( d, n ) :
+    c = dict()
     counts = Counter()
     for t in glob( join( d, '*.*.t' ) ) :
-        counts += countNGramsInFile( t, n )
+        c[t] = countNGramsInFile( t, n )
+        counts += c[t]
     with open( join( d, 'ngrams.txt' ), 'w' ) as fout :
-        print >>fout, counts
+        c[d] = counts
+        print >>fout, c
 
 
 # Reads in n-gram counts across corpus
 def readNGramFile( d ) :
     with open( join( d, 'ngrams.txt' ) ) as fin :
-        return eval( fin.readline() )
+        c = eval( fin.readline() )
+    clib = Counter()
+    counts = c[d]
+    ctotal = sum( counts.values() )
+    for t in glob( join( d, '*.*.t' ) ) :
+        cf = c[t]
+        cy = sum( cf.values() )
+        for (ng, cfy) in cf.items() :
+            cfy = float( cfy )
+            ify = cfy / ctotal * log( cfy / cy * ctotal / counts[ng], 2 )
+            if ify > 0 :
+                cf[ng] = ify
+                clib[ng] += ify
+            else :
+                del cf[ng]
+    c['lib'] = clib
+    del c[d]
+    return c
 
 
 # Fingerprinting keeps at most unique k n-grams per function
-def fingerprint( d, c, k, n, s ) :
+def fingerprint( d, i, k, n, s ) :
     fp = dict()
     for t in glob( join( d, '*.*.t' ) ) :
+        it = i[t] if t in i else i['lib']
         (b, e) = splitext( t )
         ngrams = readNGramsInFile( t, n )
         if not ngrams :
             continue
-        counts = Counter()
-        for ng in ngrams :
-            counts[ng] = max( 1, c[ng] )
-        for (ng, ct) in counts.most_common() :
-            if len( ngrams ) <= k :
-                break
-            while len( ngrams ) > k and ng in ngrams :
+        for ng in ngrams[:] :
+            if ng not in it :
                 ngrams.remove( ng )
+        if not ngrams :
+            continue
+        if t in i and len( ngrams ) > k :
+            for (ng, ct) in it.most_common()[:k - len( ngrams ):-1] :
+                if len( ngrams ) <= k :
+                    break
+                while len( ngrams ) > k and ng in ngrams :
+                    ngrams.remove( ng )
         fp[b] = ngrams
     with open( join( d, 'fingerprints-' + s + '.txt' ), 'w' ) as fout :
         print >>fout, fp
@@ -245,11 +373,10 @@ def readFingerprintsFile( d, s ) :
 
 # Scores similarity between two fingerprint sets, returns (0->1, 0->1)
 def fingerprintSimilarity( f1, f2 ) :
-    s1 = set(f1)
-    s2 = set(f2)
+    (s1, s2) = (set(f1), set(f2))
     su = s1 & s2
-    cu = float(len(su))
-    return (cu/len(s1), cu/len(s2))
+    (c1, c2, cu) = (len(s1), len(s2), float(len(su)))
+    return (cu/c1 if c1 > 0 else 1.0, cu/c2 if c2 > 0 else 1.0)
 
 
 # Scores distance from similarities between two fingerprint sets, returns (0->1)
@@ -324,6 +451,8 @@ def runOptionParser() :
         help='fraction of fingerprints that can differ in similarity report [ default : 0.5 ]' )
     parser.add_option('-s', '--skip_library', action='store_true', default=False, dest='skip_library',
         help='skip processing the library code' )
+    parser.add_option('-o', '--optimizations', action='store_true', default=False, dest='optimizations',
+        help='build optimized versions of library code (-O1,-O2,-O3,-Os)' )
     (opts, args) = parser.parse_args( argv )
     opts.l = join( curdir, opts.l ) if opts.l else curdir
     opts.u = join( curdir, opts.u ) if opts.u else curdir
@@ -334,16 +463,16 @@ def runOptionParser() :
 if __name__ == '__main__' :
     (opts, args) = runOptionParser()
     if not opts.skip_library :
-        splitCode( opts.l )
+        splitCode( opts.l, opts.optimizations )
         tokenizeCode( opts.l, opts.a )
         countNGrams( opts.l, opts.n )
-    c = readNGramFile( opts.l )
+    i = readNGramFile( opts.l )
     if not opts.skip_library :
-        fingerprint( opts.l, c, opts.k, opts.n, 'lib' )
+        fingerprint( opts.l, i, opts.k, opts.n, 'lib' )
         cleanupDirectory( opts.l )
     splitExecutables( opts.u )
     tokenizeCode( opts.u, opts.a )
-    fingerprint( opts.u, c, opts.k, opts.n, 'exe' )
+    fingerprint( opts.u, i, opts.k, opts.n, 'exe' )
     cleanupDirectory( opts.u )
     fpl = readFingerprintsFile( opts.l, 'lib' )
     fpu = readFingerprintsFile( opts.u, 'exe' )

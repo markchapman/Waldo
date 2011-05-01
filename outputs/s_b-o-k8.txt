@@ -1,0 +1,16 @@
+./b/sll-reverse.exe.__libc_csu_fini <-> ./s/tree-O2.MakeEmpty : 0.288541751396
+./b/sll-reverse.exe.call_gmon_start <-> ./s/list-O2.Find : 0.209430584958
+./b/sll-reverse.exe.call_gmon_start <-> ./s/list-O2.FindPrevious : 0.209430584958
+./b/sll-reverse.exe.call_gmon_start <-> ./s/list-O3.Find : 0.209430584958
+./b/sll-reverse.exe.call_gmon_start <-> ./s/list-O3.FindPrevious : 0.209430584958
+./b/sll-reverse.exe.call_gmon_start <-> ./s/tree-O2.Find : 0.209430584958
+./b/sll-reverse.exe.call_gmon_start <-> ./s/tree-O2.FindMin : 0.209430584958
+./b/sll-reverse.exe.call_gmon_start <-> ./s/tree-O3.Insert : 0.209430584958
+./b/sll-reverse.exe.main <-> ./s/list-O2.Find : 0.291802845334
+./b/sll-reverse.exe.main <-> ./s/list-O2.FindPrevious : 0.291802845334
+./b/sll-reverse.exe.main <-> ./s/list-O3.Find : 0.291802845334
+./b/sll-reverse.exe.main <-> ./s/list-O3.FindPrevious : 0.291802845334
+./b/sll-reverse.exe.main <-> ./s/tree-O2.Find : 0.291802845334
+./b/sll-reverse.exe.main <-> ./s/tree-O2.FindMin : 0.291802845334
+./b/sll-reverse.exe.main <-> ./s/tree-O3.Insert : 0.291802845334
+./b/sll-reverse.exe.reverse_with_recursion <-> ./s/tree.FindMin : 0.410744349011
