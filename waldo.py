@@ -144,7 +144,7 @@ def getAbstractX86Instructions () :
 
 
 # Tokenizes a directory of assembly code into a more abstract representation (tunable amount t)
-def tokenizeCode( d, t ) : # TODO: split instruction and variable abstractions
+def tokenizeCode( d, t ) :
 
     # maps instructions, jumps, values, and registers to indexed, abstract identifiers
     if t > 0 :
@@ -236,13 +236,52 @@ def tokenizeCode( d, t ) : # TODO: split instruction and variable abstractions
             print 'Odd Instructions:\n' + '\n'.join( odd )
 
 
+# Renumbers terms in n-grams
+def renumberNGram( ngram ) :
+    (lines, jmp, val, reg, stk, mem) = ( list(), list(), list(), list(), list(), list() )
+    for line in ngram :
+        split = line.split()
+        l = split[0]
+        if len( split ) > 1 :
+            for s in split[1:] :
+                if len( s ) > 1 :
+                    if s[0] == 'J' :
+                        if s not in jmp :
+                            jmp.append( s )
+                        l += ' J' + str( jmp.index( s ) )
+                    elif s[0] == 'V' :
+                        if s not in val :
+                            val.append( s )
+                        l += ' V' + str( val.index( s ) )
+                    elif s[0] == 'R' :
+                        if s not in reg :
+                            reg.append( s )
+                        l += ' R' + str( reg.index( s ) )
+                    elif s[0] == 'S' :
+                        if s not in stk :
+                            stk.append( s )
+                        l += ' S' + str( stk.index( s ) )
+                    elif s[0] == 'P' :
+                        if ('R' + s[1]) not in reg :
+                            reg.append( 'R' + s[1] )
+                        l += ' P' + str( reg.index( 'R' + s[1] ) )
+                    elif s[0] == 'M' :
+                        if s not in mem :
+                            mem.append( s )
+                        l += ' M' + str( mem.index( s ) )
+                    else :
+                        l += ' ' + s
+        lines.append( l )
+    return lines
+
+
 # Reads n-grams in a single file of tokenized assembly code
 def readNGramsInFile( f, n ) :
     ngrams = list()
     if n <= 1 :
         with open( f ) as fin :
             for line in fin :
-                ngrams.append( line.rstrip() )
+                ngrams.append( renumberNGram( [ line.rstrip() ] ) )
     else :
         lines = list()
         with open( f ) as fin :
@@ -254,7 +293,7 @@ def readNGramsInFile( f, n ) :
                         lines[i] = lines[i+1]
                     lines[n-1] = line.rstrip()
                 if len( lines ) == n :
-                    ngrams.append( ' :: '.join( lines ) )
+                    ngrams.append( ' :: '.join( renumberNGram( lines ) ) )
     return ngrams
 
 
@@ -295,6 +334,8 @@ def fingerprint( d, c, k, n, s ) :
                 counts[ng] = c[ng]
             else :
                 ngrams.remove( ng )
+        if not ngrams :
+            continue
         for (ng, ct) in counts.most_common() :
             if len( ngrams ) <= k :
                 break
@@ -313,11 +354,10 @@ def readFingerprintsFile( d, s ) :
 
 # Scores similarity between two fingerprint sets, returns (0->1, 0->1)
 def fingerprintSimilarity( f1, f2 ) :
-    s1 = set(f1)
-    s2 = set(f2)
+    (s1, s2) = (set(f1), set(f2))
     su = s1 & s2
-    cu = float(len(su))
-    return (cu/len(s1), cu/len(s2))
+    (c1, c2, cu) = (len(s1), len(s2), float(len(su)))
+    return (cu/c1 if c1 > 0 else 1.0, cu/c2 if c2 > 0 else 1.0)
 
 
 # Scores distance from similarities between two fingerprint sets, returns (0->1)
