@@ -8,7 +8,7 @@ Written by: Mark Chapman
 from collections import Counter
 from csv         import DictWriter
 from glob        import glob
-from math        import sqrt
+from math        import log, sqrt
 from optparse    import OptionParser
 from os          import curdir, remove
 from os.path     import join, splitext
@@ -214,8 +214,8 @@ def tokenizeCode( d, t ) :
                                     l += " S" if t > 1 else " S" + str( stk.index( s ) )
 
                                 # reads pointer dereferences
-                                elif i >= 0 and s[i+1:i+4] in reg :
-                                    l += " P" if t > 1 else " P" + str( reg.index( s[i+1:i+4] ) )
+                                elif i >= 0 and s[i+1:i+5] in reg :
+                                    l += " P" if t > 1 else " P" + str( reg.index( s[i+1:i+5] ) )
 
                                 # reads other memory locations
                                 else :
@@ -307,40 +307,59 @@ def countNGramsInFile( f, n ) :
 
 # Counts n-grams across directory of tokenized assembly code
 def countNGrams( d, n ) :
+    c = dict()
     counts = Counter()
     for t in glob( join( d, '*.*.t' ) ) :
-        counts += countNGramsInFile( t, n )
+        c[t] = countNGramsInFile( t, n )
+        counts += c[t]
     with open( join( d, 'ngrams.txt' ), 'w' ) as fout :
-        print >>fout, counts
+        c[d] = counts
+        print >>fout, c
 
 
 # Reads in n-gram counts across corpus
 def readNGramFile( d ) :
     with open( join( d, 'ngrams.txt' ) ) as fin :
-        return eval( fin.readline() )
+        c = eval( fin.readline() )
+    clib = Counter()
+    counts = c[d]
+    ctotal = sum( counts.values() )
+    for t in glob( join( d, '*.*.t' ) ) :
+        cf = c[t]
+        cy = sum( cf.values() )
+        for (ng, cfy) in cf.items() :
+            cfy = float( cfy )
+            ify = cfy / ctotal * log( cfy / cy * ctotal / counts[ng], 2 )
+            if ify > 0 :
+                cf[ng] = ify
+                clib[ng] += ify
+            else :
+                del cf[ng]
+    c['lib'] = clib
+    del c[d]
+    return c
 
 
 # Fingerprinting keeps at most unique k n-grams per function
-def fingerprint( d, c, k, n, s ) :
+def fingerprint( d, i, k, n, s ) :
     fp = dict()
     for t in glob( join( d, '*.*.t' ) ) :
+        it = i[t] if t in i else i['lib']
         (b, e) = splitext( t )
         ngrams = readNGramsInFile( t, n )
         if not ngrams :
             continue
-        counts = Counter()
         for ng in ngrams[:] :
-            if ng in c :
-                counts[ng] = c[ng]
-            else :
+            if ng not in it :
                 ngrams.remove( ng )
         if not ngrams :
             continue
-        for (ng, ct) in counts.most_common() :
-            if len( ngrams ) <= k :
-                break
-            while len( ngrams ) > k and ng in ngrams :
-                ngrams.remove( ng )
+        if t in i and len( ngrams ) > k :
+            for (ng, ct) in it.most_common()[:k - len( ngrams ):-1] :
+                if len( ngrams ) <= k :
+                    break
+                while len( ngrams ) > k and ng in ngrams :
+                    ngrams.remove( ng )
         fp[b] = ngrams
     with open( join( d, 'fingerprints-' + s + '.txt' ), 'w' ) as fout :
         print >>fout, fp
@@ -447,13 +466,13 @@ if __name__ == '__main__' :
         splitCode( opts.l, opts.optimizations )
         tokenizeCode( opts.l, opts.a )
         countNGrams( opts.l, opts.n )
-    c = readNGramFile( opts.l )
+    i = readNGramFile( opts.l )
     if not opts.skip_library :
-        fingerprint( opts.l, c, opts.k, opts.n, 'lib' )
+        fingerprint( opts.l, i, opts.k, opts.n, 'lib' )
         cleanupDirectory( opts.l )
     splitExecutables( opts.u )
     tokenizeCode( opts.u, opts.a )
-    fingerprint( opts.u, c, opts.k, opts.n, 'exe' )
+    fingerprint( opts.u, i, opts.k, opts.n, 'exe' )
     cleanupDirectory( opts.u )
     fpl = readFingerprintsFile( opts.l, 'lib' )
     fpu = readFingerprintsFile( opts.u, 'exe' )
