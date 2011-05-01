@@ -75,41 +75,81 @@ def splitExecutables( d ) :
         splitAssembly( exe + '.s' )
 
 
+# Builds an instruction set abstraction
+def getAbstractX86Instructions () :
+    return {
+        # FC: function call
+        'call':'FC',
+        # FR: function return
+        'ret':'FR',
+        # MF: moving from stack
+        'leave':'MF','pop':'MF', 'popa':'MF', 'popf':'MF', 'popl':'MF',
+        # MT: moving to stack
+        'enter':'MT', 'push':'MT', 'pusha':'MT', 'pushf':'MT', 'pushl':'MT', 'fildl':'MT', 'fildll':'MT', 'fld':'MT',
+        'fld1':'MT', 'fldl':'MT', 'flds':'MT', 'fldt':'MT', 'fldz':'MT',
+        # MV: moving data
+        'fistl':'MV', 'fistpl':'MV', 'fistpll':'MV', 'fldcw':'MV', 'fnstcw':'MV', 'fnstsw':'MV', 'fstl':'MV',
+        'fstp':'MV', 'fstpl':'MV', 'fstps':'MV', 'fstpt':'MV', 'fsts':'MV', 'fxch':'MV', 'mov':'MV', 'movb':'MV',
+        'movl':'MV', 'movw':'MV', 'xchg':'MV',
+        # CT: conversion
+        'cbtw':'CT', 'cltd':'CT', 'cwtd':'CT', 'cwtl':'CT',
+        # DI: data input
+        'in':'DI',
+        # DO: data output
+        'out':'DO',
+        # IA: integer arithmetic
+        'adc':'IA', 'adcl':'IA', 'add':'IA', 'addb':'IA', 'addl':'IA', 'addw':'IA', 'dec':'IA', 'decl':'IA', 'div':'IA',
+        'divl':'IA', 'idiv':'IA', 'idivl':'IA', 'imul':'IA', 'imull':'IA', 'inc':'IA', 'incl':'IA', 'mul':'IA',
+        'mull':'IA', 'neg':'IA', 'negl':'IA', 'sbb':'IA', 'sbbl':'IA', 'sub':'IA', 'subl':'IA',
+        # FA: floating point arithmetic
+        'fabs':'FA', 'fadd':'FA', 'faddl':'FA', 'faddp':'FA', 'fadds':'FA', 'fchs':'FA', 'fdiv':'FA', 'fdivl':'FA',
+        'fdivp':'FA', 'fdivr':'FA', 'fdivrl':'FA', 'fdivrp':'FA', 'fdivs':'FA', 'fmul':'FA', 'fmull':'FA', 'fmulp':'FA',
+        'fmuls':'FA', 'frndint':'FA', 'fsub':'FA', 'fsubl':'FA', 'fsubp':'FA', 'fsubr':'FA', 'fsubrl':'FA',
+        'fsubrp':'FA', 'fsubs':'FA',
+        # BS: bitshift
+        'rcl':'BS', 'rcr':'BS', 'rol':'BS', 'ror':'BS', 'sal':'BS', 'sall':'BS', 'sar':'BS', 'sarl':'BS', 'shl':'BS',
+        'shld':'BS', 'shll':'BS', 'shr':'BS', 'shrd':'BS', 'shrl':'BS',
+        # LG: logic
+        'and':'LG', 'andb':'LG', 'andl':'LG', 'not':'LG', 'notl':'LG', 'or':'LG', 'orb':'LG', 'orl':'LG', 'orw':'LG',
+        'xor':'LG', 'xorb':'LG', 'xorl':'LG',
+        # JU: jump unconditionally
+        'jmp':'JU',
+        # CM: comparisons
+        'bsr':'CM', 'bts':'CM', 'cmp':'CM', 'cmpb':'CM', 'cmpl':'CM', 'cmpw':'CM', 'fucom':'CM', 'fucomp':'CM',
+        'fucompp':'CM', 'test':'CM', 'testb':'CM', 'testl':'CM',
+        # JS: jump conditionally (signed)
+        'jg':'JS', 'jge':'JS', 'jl':'JS', 'jle':'JS', 'jng':'JS', 'jnge':'JS', 'jnl':'JS', 'jnle':'JS', 'jno':'JS',
+        'jns':'JS', 'jo':'JS', 'js':'JS',
+        # JC: jump conditionally (unsigned)
+        'ja':'JC', 'jae':'JC', 'jb':'JC', 'jbe':'JC', 'jc':'JC', 'jna':'JC', 'jnae':'JC', 'jnb':'JC', 'jnbe':'JC',
+        'jnc':'JC',
+        # JG: jump conditionally (general)
+        'je':'JG', 'jne':'JG', 'jnp':'JG', 'jnz':'JG', 'jp':'JG', 'jpe':'JG', 'jpo':'JG', 'jz':'JG',
+        # SF: set flags
+        'lahf':'SF', 'sahf':'SF', 'seta':'SF', 'setae':'SF', 'setb':'SF', 'setbe':'SF', 'sete':'SF', 'setg':'SF',
+        'setge':'SF', 'setl':'SF', 'setle':'SF', 'setne':'SF', 'setnp':'SF', 'setp':'SF',
+        # SS: set status
+        'clc':'SS', 'cld':'SS', 'cli':'SS', 'cmc':'SS', 'stc':'SS', 'std':'SS', 'sti':'SS',
+        # ST: moving strings / static arrays
+        'movsbl':'ST', 'movsbw':'ST', 'movswl':'ST', 'movzbl':'ST', 'movzbw':'ST', 'movzwl':'ST', 'rep':'ST',
+        'repe':'ST', 'repne':'ST', 'repnz':'ST', 'repz':'ST',
+        # MH: miscellaneous (halt)
+        'hlt':'MH',
+        # MI: miscellaneous (interrupt)
+        'int':'MI',
+        # ML: miscellaneous (load effective address)
+        'lea':'ML',
+        # MN: miscellaneous (no operation)
+        'nop':'MN' }
+
+
 # Tokenizes a directory of assembly code into a more abstract representation (tunable amount t)
-def tokenizeCode( d, t ) :
-
-    # MV: moving data, IA: integer arithmetic, FA: floating point arithmetic, LG: logic, ST: strings,
-    # JS: jump (signed), JU: jump (unsigned), JG: jump (general), SF: set flags, MS: miscellaneous
-    ins = { 'adc':'IA', 'adcl':'IA', 'add':'IA', 'addb':'IA', 'addl':'IA', 'addw':'IA', 'and':'LG', 'andb':'LG',
-            'andl':'LG', 'bsr':'MV', 'bts':'MV', 'call':'JG', 'cbtw':'MV', 'clc':'MV', 'cld':'MV', 'cli':'MV',
-            'cltd': 'MV', 'cmc':'MV', 'cmp':'IA', 'cmpb':'IA', 'cmpl':'IA', 'cmpw':'IA', 'cwtd':'MV', 'cwtl':'MV',
-            'dec':'IA', 'decl':'IA', 'div':'IA', 'divl':'IA', 'fabs':'FA', 'fadd':'FA', 'faddl':'FA', 'faddp':'FA',
-            'fadds':'FA', 'fchs':'FA', 'fdiv':'FA', 'fdivl':'FA', 'fdivp':'FA', 'fdivr':'FA', 'fdivrl':'FA',
-            'fdivrp':'FA', 'fdivs':'FA', 'fildl':'MV', 'fildll':'MV', 'fistl':'MV', 'fistpl':'MV', 'fistpll':'MV',
-            'fld':'MV', 'fld1':'MV', 'fldcw':'MV', 'fldl':'MV', 'flds':'MV', 'fldt':'MV', 'fldz':'MV', 'fmul':'FA',
-            'fmull':'FA', 'fmulp':'FA', 'fmuls':'FA', 'fnstcw':'MV', 'fnstsw':'MV', 'frndint':'FA', 'fstl':'MV',
-            'fstp':'MV', 'fstpl':'MV', 'fstps':'MV', 'fstpt':'MV', 'fsts':'MV', 'fsub':'FA', 'fsubl':'FA',
-            'fsubp':'FA', 'fsubr':'FA', 'fsubrl':'FA', 'fsubrp':'FA', 'fsubs':'FA', 'fucom':'FA', 'fucomp':'FA',
-            'fucompp':'FA', 'fxch':'MV', 'hlt':'MS', 'idiv':'IA', 'idivl':'IA', 'imul':'IA', 'imull':'IA', 'in':'MV',
-            'inc':'IA', 'incl':'IA', 'int':'MS', 'ja':'JU', 'jae':'JU', 'jb':'JU', 'jbe':'JU', 'jc':'JU', 'je':'JG',
-            'jg':'JS', 'jge':'JS', 'jl':'JS', 'jle':'JS', 'jmp':'JG', 'jna':'JU', 'jnae':'JU', 'jnb':'JU', 'jnbe':'JU',
-            'jnc':'JU', 'jne':'JG', 'jng':'JS', 'jnge':'JS', 'jnl':'JS', 'jnle':'JS', 'jno':'JS', 'jnp':'JG',
-            'jns':'JS', 'jnz':'JG', 'jo':'JS', 'jp':'JG', 'jpe':'JG', 'jpo':'JG', 'js':'JS', 'jz':'JG', 'lea':'MS',
-            'leave':'MV', 'mov':'MV', 'movb':'MV', 'movl':'MV', 'movsbl':'ST', 'movsbw':'ST', 'movswl':'ST',
-            'movw':'MV', 'movzbl':'MV', 'movzbw':'MV', 'movzwl':'MV', 'mul':'IA', 'mull':'IA', 'neg':'LG', 'negl':'LG',
-            'nop':'MS', 'not':'LG', 'notl':'LG', 'or':'LG', 'orb':'LG', 'orl':'LG', 'orw':'LG', 'out':'MV', 'pop':'MV',
-            'popa':'MV', 'popf':'MV', 'push':'MV', 'pusha':'MV', 'pushf':'MV', 'pushl':'MV', 'rcl':'IA', 'rcr':'IA',
-            'rep':'ST', 'repz':'ST', 'ret':'JG', 'rol':'IA', 'ror':'IA', 'sahf':'MV', 'sal':'IA', 'sall':'IA',
-            'sar':'IA', 'sarl':'IA', 'sbb':'IA', 'sbbl':'IA', 'seta':'SF', 'setae':'SF', 'setb':'SF', 'setbe':'SF',
-            'sete':'SF', 'setg':'SF', 'setge':'SF', 'setl':'SF', 'setle':'SF', 'setne':'SF', 'setnp':'SF', 'setp':'SF',
-            'shl':'LG', 'shld':'LG', 'shll':'LG', 'shr':'LG', 'shrd':'LG', 'shrl':'LG', 'stc':'MV', 'std':'MV',
-            'sti':'MV', 'sub':'IA', 'subl':'IA', 'test':'LG', 'testb':'LG', 'testl':'LG', 'xchg':'MV', 'xor':'LG',
-            'xorb':'LG', 'xorl':'LG' }
-
-    odd = list()
+def tokenizeCode( d, t ) : # TODO: split instruction and variable abstractions
 
     # maps instructions, jumps, values, and registers to indexed, abstract identifiers
     if t > 0 :
+        ins = getAbstractX86Instructions()
+        odd = list()
         for fs in glob( join( d, '*.*.s' ) ) :
             if fs.endswith( 'exe.s' ) :
                 continue
@@ -123,7 +163,7 @@ def tokenizeCode( d, t ) :
 
                     # reads instruction
                     s = split[0].strip() if len( split ) > 0 else line.strip()
-                    if s not in ins :
+                    if s not in ins and s not in odd :
                         odd.append( s )
                     if s.startswith( 'rep' ) :
                         split = split[1].split( None, 1 )
@@ -133,7 +173,7 @@ def tokenizeCode( d, t ) :
                     if len( split ) > 1 :
 
                         # handles jumps and calls
-                        if s in ins and ins[s].startswith( 'J' ) :
+                        if s in ins and ins[s] in [ 'FC', 'JU', 'JS', 'JC', 'JG' ] :
                             s = split[1].strip()
                             if s not in jmp :
                                 jmp.append( s )
@@ -173,11 +213,16 @@ def tokenizeCode( d, t ) :
                                         stk.append( s )
                                     l += " S" if t > 1 else " S" + str( stk.index( s ) )
 
-                                # reads heap locations
+                                # reads pointer dereferences
+                                elif i >= 0 and s[i+1:i+4] in reg :
+                                    l += " P" if t > 1 else " P" + str( reg.index( s[i+1:i+4] ) )
+
+                                # reads other memory locations
                                 else :
                                     if s not in mem :
                                         mem.append( s )
                                     l += " M" if t > 1 else " M" + str( mem.index( s ) )
+                                    
 
                     # stores abstracted line
                     lines.append( l )
@@ -245,8 +290,11 @@ def fingerprint( d, c, k, n, s ) :
         if not ngrams :
             continue
         counts = Counter()
-        for ng in ngrams :
-            counts[ng] = max( 1, c[ng] )
+        for ng in ngrams[:] :
+            if ng in c :
+                counts[ng] = c[ng]
+            else :
+                ngrams.remove( ng )
         for (ng, ct) in counts.most_common() :
             if len( ngrams ) <= k :
                 break
