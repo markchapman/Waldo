@@ -1,0 +1,54 @@
+avltree.c / avltree.h                 avltree.Find.s                   avltree.Find.t
+---------------------------------     ----------------------------     --------------
+struct AvlNode;                       push   %ebp                         MT R0
+typedef struct AvlNode *Position;     mov    %esp,%ebp                    MV R1 R0
+typedef struct AvlNode *AvlTree;      sub    $0xc,%esp                    IA V0 R1
+                                      cmpl   $0x0,0xc(%ebp)               CM V1 S0
+struct AvlNode                        jne    4f <Find+0x15>               JG J0
+{                                     movl   $0x0,0xfffffffc(%ebp)        MV V1 S1
+  ElementType Element;                jmp    9d <Find+0x63>              *JU J1
+  AvlTree  Left;                      mov    0xc(%ebp),%eax              |MV S0 R2
+  AvlTree  Right;                     mov    (%eax),%eax                 |MV P2 R2
+  int      Height;                    cmp    0x8(%ebp),%eax              *CM S2 R2
+};                                    jle    73 <Find+0x39>             *|JS J2
+                                      mov    0xc(%ebp),%eax            *||MV S0 R2
+Position                              mov    0x4(%eax),%eax            ||*MV P2 R2
+Find( ElementType X, AvlTree T )      mov    %eax,0x4(%esp)            |* MV R2 S3
+{                                     mov    0x8(%ebp),%eax            *  MV S2 R2
+  if( T == NULL )                     mov    %eax,(%esp)                 *MV R2 S4
+    return NULL;                      call   6a <Find+0x30>             *|FC J3
+  if( X < T->Element )                mov    %eax,0xfffffffc(%ebp)      ||MV R2 S1
+    return Find( X, T->Left );        jmp    9d <Find+0x63>            *|*JU J1
+  else                                mov    0xc(%ebp),%eax            |* MV S0 R2
+  if( X > T->Element )                mov    (%eax),%eax               |  MV P2 R2
+    return Find( X, T->Right );       cmp    0x8(%ebp),%eax            * *CM S2 R2
+  else                                jge    97 <Find+0x5d>             *|JS J4
+    return T;                         mov    0xc(%ebp),%eax            *||MV S0 R2
+}                                     mov    0x8(%eax),%eax            ||*MV P2 R2
+                                      mov    %eax,0x4(%esp)            |* MV R2 S3
+                                      mov    0x8(%ebp),%eax            *  MV S2 R2
+                                      mov    %eax,(%esp)                 *MV R2 S4
+                                      call   8e <Find+0x54>             *|FC J5
+                                      mov    %eax,0xfffffffc(%ebp)      ||MV R2 S1
+                                      jmp    9d <Find+0x63>             |*JU J1
+                                      mov    0xc(%ebp),%eax             * MV S0 R2
+                                      mov    %eax,0xfffffffc(%ebp)        MV R2 S1
+                                      mov    0xfffffffc(%ebp),%eax        MV S1 R2
+                                      leave                               MF
+                                      ret                                 FR
+
+
+avltree.Find fingerprint
+--------------------------------------------
+JU J0    :: MV S0 R0 :: MV P0 R0 :: CM S1 R0
+CM S0 R0 :: JS J0    :: MV S1 R0 :: MV P0 R0
+JS J0    :: MV S0 R0 :: MV P0 R0 :: MV R0 S1
+MV S0 R0 :: MV P0 R0 :: MV R0 S1 :: MV S2 R0
+MV R0 S0 :: FC J0    :: MV R0 S1 :: JU J1
+FC J0    :: MV R0 S0 :: JU J1    :: MV S1 R0
+JU J0    :: MV S0 R0 :: MV P0 R0 :: CM S1 R0
+CM S0 R0 :: JS J0    :: MV S1 R0 :: MV P0 R0
+JS J0    :: MV S0 R0 :: MV P0 R0 :: MV R0 S1
+MV S0 R0 :: MV P0 R0 :: MV R0 S1 :: MV S2 R0
+MV R0 S0 :: FC J0    :: MV R0 S1 :: JU J1
+FC J0    :: MV R0 S0 :: JU J1    :: MV S1 R0

@@ -1,0 +1,62 @@
+list.FindPrevious.s               sll-reverse.exe.list_nodes_in_reverse_order.s
+-------------------------------   --------------------------------------------------
+ push   %ebp                       push   %ebp
+ mov    %esp,%ebp                  mov    %esp,%ebp
+ sub    $0x10,%esp                 sub    $0x18,%esp
+*mov    0xc(%ebp),%eax             movl   $0x0,0xfffffff8(%ebp)
+|mov    %eax,0xfffffffc(%ebp)      movl   $0x0,0xfffffffc(%ebp)
+|jmp    123 <FindPrevious+0x17>    movl   $0x80489b6,(%esp)
+|mov    0xfffffffc(%ebp),%eax      call   8048368 <printf@plt>
+|mov    0x4(%eax),%eax             jmp    8048603 <list_nodes_in_reverse_order+0x59>
+|mov    %eax,0xfffffffc(%ebp)     *mov    0x8(%ebp),%eax
+|mov    0xfffffffc(%ebp),%eax     |mov    %eax,0xfffffffc(%ebp)
+|mov    0x4(%eax),%eax            |jmp    80485dd <list_nodes_in_reverse_order+0x33>
+|test   %eax,%eax                 |mov    0xfffffffc(%ebp),%eax
+|je     13a <FindPrevious+0x2e>   |mov    0x4(%eax),%eax
+|mov    0xfffffffc(%ebp),%eax     |mov    %eax,0xfffffffc(%ebp)
+*mov    0x4(%eax),%eax            |mov    0xfffffffc(%ebp),%eax
+ mov    (%eax),%eax               |mov    0x4(%eax),%eax
+ cmp    0x8(%ebp),%eax            |cmp    0xfffffff8(%ebp),%eax
+ jne    11a <FindPrevious+0xe>    |jne    80485d4 <list_nodes_in_reverse_order+0x2a>
+ mov    0xfffffffc(%ebp),%eax     |mov    0xfffffffc(%ebp),%eax
+ leave                            *mov    (%eax),%eax
+ ret                               mov    %eax,0x4(%esp)
+                                   movl   $0x80489a6,(%esp)
+                                   call   8048368 <printf@plt>
+                                   mov    0xfffffffc(%ebp),%eax
+                                   mov    %eax,0xfffffff8(%ebp)
+                                   mov    0x8(%ebp),%eax
+                                   cmp    0xfffffff8(%ebp),%eax
+                                   jne    80485cc <list_nodes_in_reverse_order+0x22>
+                                   movl   $0x80489ac,(%esp)
+                                   call   8048368 <printf@plt>
+                                   leave
+                                   ret
+
+
+list.FindPrevious.c               sll-reverse.exe.list_nodes_in_reverse_order.c
+-------------------------------   --------------------------------------------------
+struct Node;                       typedef struct linked_list_s
+typedef struct Node *PtrToNode;    {
+typedef PtrToNode List;              int value;
+typedef PtrToNode Position;          struct linked_list_s *next;
+                                   } linked_list_t;
+struct Node
+{                                  void list_nodes_in_reverse_order(
+  ElementType Element;                                          linked_list_t *head)
+  Position    Next;                {
+};                                   linked_list_t *end = NULL;
+                                     linked_list_t *node = NULL;
+Position
+FindPrevious( ElementType X,         printf("nReverse Head");
+              List L )
+{                                    while(head != end)
+  Position P;                        {
+                                       node = head;
+  P = L;                               while(node->next != end)
+  while( P->Next != NULL &&              node = node->next;
+         P->Next->Element != X )       printf("->%d ",node->value);
+    P = P->Next;                       end = node;
+                                     }
+  return P;                          printf("->NULLand");
+}                                  }
