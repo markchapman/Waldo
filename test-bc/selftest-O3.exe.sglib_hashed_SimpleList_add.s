@@ -1,0 +1,20 @@
+push   %ebp
+mov    $0x51eb851f,%edx
+mov    %esp,%ebp
+mov    0xc(%ebp),%ecx
+push   %ebx
+mov    (%ecx),%ebx
+mov    %ebx,%eax
+mul    %edx
+shr    $0x5,%edx
+imul   $0x64,%edx,%edx
+sub    %edx,%ebx
+lea    0x0(,%ebx,4),%eax
+add    0x8(%ebp),%eax
+mov    (%eax),%edx
+mov    %edx,0x4(%ecx)
+mov    %ecx,(%eax)
+pop    %ebx
+pop    %ebp
+ret
+xchg   %ax,%ax
