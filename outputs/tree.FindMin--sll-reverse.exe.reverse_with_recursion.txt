@@ -1,0 +1,52 @@
+tree.FindMin.s                       sll-reverse.exe.reverse_with_recursion.s
+-----------------------------        ---------------------------------------------
+ push   %ebp                          push   %ebp
+ mov    %esp,%ebp                     mov    %esp,%ebp
+ sub    $0x8,%esp                     sub    $0x18,%esp
+ cmpl   $0x0,0x8(%ebp)                movl   $0x0,0xfffffffc(%ebp)
+ jne    b7 <FindMin+0x15>            *mov    0x8(%ebp),%eax
+ movl   $0x0,0xfffffffc(%ebp)        |mov    0x4(%eax),%eax
+ jmp    da <FindMin+0x38>            |test   %eax,%eax
+*mov    0x8(%ebp),%eax               |jne    8048679 <reverse_with_recursion+0x1f>
+|mov    0x4(%eax),%eax               |mov    0x8(%ebp),%eax
+|test   %eax,%eax                    |mov    %eax,0xffffffec(%ebp)
+|jne    c9 <FindMin+0x27>            |jmp    8048699 <reverse_with_recursion+0x3f>
+|mov    0x8(%ebp),%eax               |mov    0x8(%ebp),%eax
+|mov    %eax,0xfffffffc(%ebp)        |mov    0x4(%eax),%eax
+|jmp    da <FindMin+0x38>            |mov    %eax,(%esp)
+|mov    0x8(%ebp),%eax               |call   804865a <reverse_with_recursion>
+|mov    0x4(%eax),%eax               *mov    %eax,0xfffffffc(%ebp)
+|mov    %eax,(%esp)                   mov    0xfffffffc(%ebp),%edx
+|call   d3 <FindMin+0x31>             mov    0x8(%ebp),%eax
+*mov    %eax,0xfffffffc(%ebp)         mov    %eax,0x4(%edx)
+ mov    0xfffffffc(%ebp),%eax         mov    0x8(%ebp),%eax
+ leave                                mov    %eax,0xffffffec(%ebp)
+ ret                                  mov    0xffffffec(%ebp),%eax
+                                      leave
+                                      ret
+
+
+tree.FindMin.c                        sll-reverse.exe.reverse_with_recursion.c
+---------------------------------     --------------------------------------------
+struct TreeNode;
+typedef struct TreeNode *Position;
+typedef struct TreeNode *SearchTree;
+                                      typedef struct linked_list_s
+struct TreeNode                       {
+{                                       int value;
+    ElementType Element;                struct linked_list_s *next;
+    SearchTree  Left;                 } linked_list_t;
+    SearchTree  Right;
+};                                    linked_list_t* reverse_with_recursion(
+                                                              linked_list_t* node)
+Position                              {
+FindMin( SearchTree T )                 linked_list_t* temp = NULL;
+{
+    if( T == NULL )                     if(node->next == NULL)
+        return NULL;                      return node;
+    else
+    if( T->Left == NULL )               temp = reverse_with_recursion(node->next);
+        return T;                       temp->next =node;
+    else
+        return FindMin( T->Left );      return node;
+}                                     }

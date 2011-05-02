@@ -1,0 +1,3 @@
+jmp    *0x804f7c0
+push   $0x8
+jmp    8048438 <_init+0x18>
