@@ -1,0 +1,4 @@
+Change the PIN_HOME variable in the makefile to point to the PIN
+installation.
+The run.sh file gives some idea of how to generate the traces. 
+Any questions, emaill adi@cs.wisc.edu
