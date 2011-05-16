@@ -230,7 +230,7 @@ VOID Routine(RTN rtn, VOID *v)
     //const string &name = RTN_Name(rtn);            
     // Insert a call at the entry point of a routine to print name
     RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)printRtnNameAtEntry, IARG_PTR, &(RTN_Name(rtn)), IARG_END);
-    RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)printRtnNameAtExit, IARG_PTR, &(RTN_Name(rtn)), IARG_END);
+    RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)printRtnNameAtExit, IARG_PTR, &(RTN_Name(rtn)), IARG_END);
     RTN_Close(rtn);
 }
 
