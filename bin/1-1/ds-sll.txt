@@ -1,0 +1,7 @@
+teststkl.exe.CreateStack
+teststkl.exe.DisposeStack
+teststkl.exe.IsEmpty
+teststkl.exe.MakeEmpty
+teststkl.exe.Pop
+teststkl.exe.Push
+teststkl.exe.Top

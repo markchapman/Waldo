@@ -1,0 +1,7 @@
+sll-reverse.exe.add_node.s
+sll-reverse.exe.delete_node.s
+sll-reverse.exe.list_nodes_in_reverse_order.s
+sll-reverse.exe.list_nodes.s
+sll-reverse.exe.reverse_without_recursion.s
+sll-reverse.exe.reverse_with_recursion_anotherway.s
+sll-reverse.exe.reverse_with_recursion.s

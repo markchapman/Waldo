@@ -11,8 +11,8 @@ from glob        import glob
 from math        import log, sqrt
 from optparse    import OptionParser
 from os          import curdir, remove
-from os.path     import join, splitext
-from subprocess  import call
+from os.path     import exists, join, splitext
+from subprocess  import call, PIPE, Popen
 from sys         import argv
 
 
@@ -99,8 +99,9 @@ def getAbstractX86Instructions () :
         'out':'DO',
         # IA: integer arithmetic
         'adc':'IA', 'adcl':'IA', 'add':'IA', 'addb':'IA', 'addl':'IA', 'addw':'IA', 'dec':'IA', 'decl':'IA', 'div':'IA',
-        'divl':'IA', 'idiv':'IA', 'idivl':'IA', 'imul':'IA', 'imull':'IA', 'inc':'IA', 'incl':'IA', 'mul':'IA',
-        'mull':'IA', 'neg':'IA', 'negl':'IA', 'sbb':'IA', 'sbbl':'IA', 'sub':'IA', 'subl':'IA',
+        'divl':'IA', 'idiv':'IA', 'idivl':'IA', 'imul':'IA', 'imull':'IA', 'inc':'IA', 'incb':'IA', 'incl':'IA',
+        'incw':'IA', 'mul':'IA', 'mull':'IA', 'neg':'IA', 'negl':'IA', 'sbb':'IA', 'sbbl':'IA', 'sub':'IA', 'subb':'IA',
+        'subl':'IA',
         # FA: floating point arithmetic
         'fabs':'FA', 'fadd':'FA', 'faddl':'FA', 'faddp':'FA', 'fadds':'FA', 'fchs':'FA', 'fdiv':'FA', 'fdivl':'FA',
         'fdivp':'FA', 'fdivr':'FA', 'fdivrl':'FA', 'fdivrp':'FA', 'fdivs':'FA', 'fmul':'FA', 'fmull':'FA', 'fmulp':'FA',
@@ -115,8 +116,8 @@ def getAbstractX86Instructions () :
         # JU: jump unconditionally
         'jmp':'JU',
         # CM: comparisons
-        'bsr':'CM', 'bts':'CM', 'cmp':'CM', 'cmpb':'CM', 'cmpl':'CM', 'cmpw':'CM', 'fucom':'CM', 'fucomp':'CM',
-        'fucompp':'CM', 'test':'CM', 'testb':'CM', 'testl':'CM',
+        'bsr':'CM', 'bt':'CM', 'bts':'CM', 'cmp':'CM', 'cmpb':'CM', 'cmpl':'CM', 'cmpw':'CM', 'fucom':'CM',
+        'fucomp':'CM', 'fucompp':'CM', 'test':'CM', 'testb':'CM', 'testl':'CM',
         # JS: jump conditionally (signed)
         'jg':'JS', 'jge':'JS', 'jl':'JS', 'jle':'JS', 'jng':'JS', 'jnge':'JS', 'jnl':'JS', 'jnle':'JS', 'jno':'JS',
         'jns':'JS', 'jo':'JS', 'js':'JS',
@@ -228,8 +229,8 @@ def tokenizeCode( d, t ) :
                     lines.append( l )
 
             # writes out tokenized assembly code
-            with open( b + '.t', 'w' ) as fin :
-                print >>fin, '\n'.join( lines )
+            with open( b + '.t', 'w' ) as fout :
+                print >>fout, '\n'.join( lines )
 
         # prints out any missed instructions
         if len( odd ) > 0 :
@@ -417,15 +418,53 @@ def writeDistancesInSpreadsheet( fpd, f ) :
 
 
 # Prints out function pairs with distances below a given threshold
-def reportSimilarities( fpd, t ) :
-    rows = fpd.items()
-    rows.sort()
-    for (key, row) in rows :
-        cols = row.items()
-        cols.sort()
-        for (key2, col) in cols :
-            if col <= t :
-                print key, '<->', key2, ':', col
+def reportSimilarities( fpd, t, f ) :
+    with open( f, 'w' ) as fout :
+        rows = fpd.items()
+        rows.sort()
+        for (key, row) in rows :
+            cols = row.items()
+            cols.sort()
+            for (key2, col) in cols :
+                if col <= t :
+                    print >>fout, key, '<->', key2, ':', col
+
+
+# Prints out summaries for requested matches (useful to tally true and false positives)
+def reportSummaries( d ) :
+    sums = join( d, 'summaries.txt' )
+    sims = join( d, 'similarities.txt' )
+    if exists( sums ) :
+        with open( sums ) as sin :
+            for summary in sin :
+                summary = summary.strip().split( ' ' )
+                if not summary or len( summary ) != 2 :
+                    continue
+                with open( join( d, summary[0] ) ) as fin :
+                    count = 0
+                    overall = [0] * 10
+                    matches = [0] * 10
+                    for line in fin :
+                        line = line.rstrip()
+                        count += 1
+                        n = 10
+                        p = Popen( [ 'grep', line + ' ', sims ], stdout=PIPE )
+                        pin = Popen( [ 'grep', summary[1], '-' ], stdin=p.stdout, stdout=PIPE ).communicate()[0]
+                        for match in pin.strip().split('\n') :
+                            if match.strip() :
+                                i = match.find( ':' )
+                                m = int( float( match[i+2:].strip() ) * 10 )
+                                matches[m] += 1
+                                n = min(n, m)
+                        if n < 10 :
+                            overall[n] += 1
+                    print 'Functions in', summary[0], 'matching', summary[1], 'with similarity in', sims
+                    print matches, '...', sum(matches)
+                    s = 0
+                    for n in overall :
+                        s += n
+                        print s,
+                    print '/', count
 
 
 # Erases raw assembly and tokenized assembly files in given directory
@@ -437,45 +476,50 @@ def cleanupDirectory( d ) :
 # Parses command line arguments
 def runOptionParser() :
     parser = OptionParser()
-    parser.add_option('-l', '--dlib', dest='l', metavar='DLIB',
-        help='directory of library code [ default : current ]' )
-    parser.add_option('-u', '--duser', dest='u', metavar='DUSER',
-        help='directory of user code [ default : current ]' )
-    parser.add_option('-a', '--abstraction', type=int, default=1, dest='a', metavar='ABS',
+    parser.add_option( '-d', '--training_data', dest='d', metavar='TRAINING',
+        help='directory of training code [ default : current ]' )
+    parser.add_option( '-e', '--test_executables', dest='e', metavar='TEST',
+        help='directory of test executables [ default : current ]' )
+    parser.add_option( '-a', '--abstraction', type=int, default=1, dest='a', metavar='ABS',
         help='amount of abstraction [ <= 0 : none, 1 : map down repeats (default), >= 2 : map down all ]' )
-    parser.add_option('-n', type=int, default=4, dest='n', metavar='N',
+    parser.add_option( '-n', type=int, default=4, dest='n', metavar='N',
         help='number of lines combined in a match [ default : 4 ]' )
-    parser.add_option('-k', type=int, default=12, dest='k', metavar='K',
+    parser.add_option( '-k', type=int, default=12, dest='k', metavar='K',
         help='number of matches used in fingerprint [ default : 12 ]' )
-    parser.add_option('-t', '--threshold', type=float, default=0.5, dest='t', metavar='THRESH',
+    parser.add_option( '-o', '--optimizations', action='store_true', default=False, dest='optimizations',
+        help='build optimized versions of training code (-O1,-O2,-O3,-Os)' )
+    parser.add_option( '-t', '--threshold', type=float, default=0.5, dest='t', metavar='THRESH',
         help='fraction of fingerprints that can differ in similarity report [ default : 0.5 ]' )
-    parser.add_option('-s', '--skip_library', action='store_true', default=False, dest='skip_library',
-        help='skip processing the library code' )
-    parser.add_option('-o', '--optimizations', action='store_true', default=False, dest='optimizations',
-        help='build optimized versions of library code (-O1,-O2,-O3,-Os)' )
+    parser.add_option( '-s', '--skip_training', action='store_true', default=False, dest='skip_training',
+        help='skip processing the training code' )
+    parser.add_option( '-c', '--cleanup', action='store_true', default=False, dest='cleanup',
+        help='cleanup object, assembly, and tokenized files' )
     (opts, args) = parser.parse_args( argv )
-    opts.l = join( curdir, opts.l ) if opts.l else curdir
-    opts.u = join( curdir, opts.u ) if opts.u else curdir
+    opts.d = curdir if not opts.d else opts.d if opts.d.startswith( '/' ) else join( curdir, opts.d )
+    opts.e = curdir if not opts.e else opts.e if opts.e.startswith( '/' ) else join( curdir, opts.e )
     return (opts, args)
 
 
-# Finds similarity of executable to library code using fingerprints
+# Finds similarity of test executables to training code using fingerprints
 if __name__ == '__main__' :
     (opts, args) = runOptionParser()
-    if not opts.skip_library :
-        splitCode( opts.l, opts.optimizations )
-        tokenizeCode( opts.l, opts.a )
-        countNGrams( opts.l, opts.n )
-    i = readNGramFile( opts.l )
-    if not opts.skip_library :
-        fingerprint( opts.l, i, opts.k, opts.n, 'lib' )
-        cleanupDirectory( opts.l )
-    splitExecutables( opts.u )
-    tokenizeCode( opts.u, opts.a )
-    fingerprint( opts.u, i, opts.k, opts.n, 'exe' )
-    cleanupDirectory( opts.u )
-    fpl = readFingerprintsFile( opts.l, 'lib' )
-    fpu = readFingerprintsFile( opts.u, 'exe' )
-    fpd = allFingerprintDistances( fpu, fpl )
-    writeDistancesInSpreadsheet( fpd, join( opts.u, 'fingerprints.csv' ) )
-    reportSimilarities( fpd, opts.t )
+    if not opts.skip_training :
+        splitCode( opts.d, opts.optimizations )
+        tokenizeCode( opts.d, opts.a )
+        countNGrams( opts.d, opts.n )
+    i = readNGramFile( opts.d )
+    if not opts.skip_training :
+        fingerprint( opts.d, i, opts.k, opts.n, 'training' )
+    if opts.cleanup :
+        cleanupDirectory( opts.d )
+    splitExecutables( opts.e )
+    tokenizeCode( opts.e, opts.a )
+    fingerprint( opts.e, i, opts.k, opts.n, 'test' )
+    if opts.cleanup :
+        cleanupDirectory( opts.e )
+    fpt = readFingerprintsFile( opts.d, 'training' )
+    fpe = readFingerprintsFile( opts.e, 'test' )
+    fpd = allFingerprintDistances( fpt, fpe )
+    writeDistancesInSpreadsheet( fpd, join( opts.e, 'fingerprints.csv' ) )
+    reportSimilarities( fpd, opts.t, join( opts.e, 'similarities.txt' ) )
+    reportSummaries( opts.e )

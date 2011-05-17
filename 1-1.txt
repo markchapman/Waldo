@@ -1,0 +1,9 @@
+Functions in ds-sll.txt matching /stackli with similarity in ./bin/1-1/similarities.txt
+[2, 3, 2, 0, 0, 1, 4, 6, 21, 14] ... 53
+2 5 7 7 7 7 7 7 7 7 / 7
+Functions in ds-tree.txt matching /avltree\|/tree with similarity in ./bin/1-1/similarities.txt
+[16, 12, 15, 0, 0, 13, 13, 26, 59, 43] ... 197
+8 13 20 20 20 20 20 20 20 20 / 20
+Functions in not-ds.txt matching /avltree\|/stackli\|/tree with similarity in ./bin/1-1/similarities.txt
+[0, 0, 15, 0, 0, 10, 54, 4, 22, 32] ... 137
+0 0 9 9 9 13 16 18 18 21 / 57

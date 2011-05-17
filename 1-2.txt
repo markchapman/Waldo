@@ -1,0 +1,12 @@
+Functions in ds-sll.txt matching /list with similarity in ./bin/1-2/similarities.txt
+[0, 0, 0, 0, 0, 2, 1, 2, 11, 7] ... 23
+0 0 0 0 0 2 3 5 7 7 / 7
+Functions in ds-sll.txt matching /list\|/tree with similarity in ./bin/1-2/similarities.txt
+[0, 0, 0, 0, 1, 3, 1, 4, 17, 9] ... 35
+0 0 0 0 1 3 4 6 7 7 / 7
+Functions in ds-sll.txt matching /tree with similarity in ./bin/1-2/similarities.txt
+[0, 0, 0, 0, 1, 1, 0, 2, 6, 2] ... 12
+0 0 0 0 1 1 1 3 6 6 / 7
+Functions in not-ds.txt matching /list\|/tree with similarity in ./bin/1-2/similarities.txt
+[0, 0, 1, 0, 0, 3, 13, 2, 9, 7] ... 35
+0 0 1 1 1 3 5 6 6 6 / 19
